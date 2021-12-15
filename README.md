@@ -33,11 +33,12 @@ client := spc.New(&http.Client{})
 // Check if an attestation is slashable:
 resp, err := client.CheckAttestation(ctx, network, pubKey, signingRoot, &phase0.Attestation{...})
 if err != nil {
-    log.Fatal(err)
+    return err
 }
 if resp.Slashable {
-    log.Fatal("slashable attestation: %s", resp.Reason)
+    return errors.New("slashable attestation: %s", resp.Reason)
 }
+// <- Not slashable, can submit!
 
 // Check if a proposal is slashable:
 resp, err := client.CheckProposal(ctx, network, pubKey, signingRoot, &altair.BeaconBlock{...})
@@ -45,8 +46,9 @@ if err != nil {
     log.Fatal(err)
 }
 if resp.Slashable {
-    log.Fatal("slashable proposal: %s", resp.Reason)
+    return errors.New("slashable proposal: %s", resp.Reason)
 }
+// <- Not slashable, can submit!
 ```
 
 ## Developer guide
