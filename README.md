@@ -43,7 +43,7 @@ if resp.Slashable {
 // Check if a proposal is slashable:
 resp, err := client.CheckProposal(ctx, network, pubKey, signingRoot, &altair.BeaconBlock{...})
 if err != nil {
-    log.Fatal(err)
+    return err
 }
 if resp.Slashable {
     return errors.New("slashable proposal: %s", resp.Reason)
