@@ -11,6 +11,7 @@ git clone github.com/bloxapp/slashing-protector
 
 Run with Docker:
 ```
+cd slashing-protector
 docker-compose up
 ```
 
@@ -39,7 +40,13 @@ if resp.Slashable {
 }
 
 // Check if a proposal is slashable:
-resp, err := client.CheckProposal(ctx, network, pubKey, ...)
+resp, err := client.CheckProposal(ctx, network, pubKey, signingRoot, &altair.BeaconBlock{...})
+if err != nil {
+    log.Fatal(err)
+}
+if resp.Slashable {
+    log.Fatal("slashable proposal: %s", resp.Reason)
+}
 ```
 
 ## Developer guide
