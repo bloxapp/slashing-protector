@@ -46,6 +46,7 @@ func (c *Client) CheckAttestation(
 	if err != nil {
 		return nil, err
 	}
+
 	resp, err := c.http.Post(
 		c.url.ResolveReference(&url.URL{Path: fmt.Sprintf("/v1/%s/attestation", network)}).String(),
 		"application/json",
@@ -55,6 +56,7 @@ func (c *Client) CheckAttestation(
 		return nil, errors.Wrap(err, "http.Post")
 	}
 	defer resp.Body.Close()
+
 	var check protector.Check
 	if err := json.NewDecoder(resp.Body).Decode(&check); err != nil {
 		return nil, err
@@ -78,6 +80,7 @@ func (c *Client) CheckProposal(
 	if err != nil {
 		return nil, err
 	}
+
 	resp, err := c.http.Post(
 		c.url.ResolveReference(&url.URL{Path: fmt.Sprintf("/v1/%s/proposal", network)}).String(),
 		"application/json",
@@ -87,6 +90,7 @@ func (c *Client) CheckProposal(
 		return nil, errors.Wrap(err, "http.Post")
 	}
 	defer resp.Body.Close()
+
 	var check protector.Check
 	if err := json.NewDecoder(resp.Body).Decode(&check); err != nil {
 		return nil, err

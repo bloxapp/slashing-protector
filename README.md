@@ -31,22 +31,22 @@ import (
 client := spc.New(&http.Client{})
 
 // Check if an attestation is slashable:
-resp, err := client.CheckAttestation(ctx, network, pubKey, signingRoot, &phase0.Attestation{...})
+check, err := client.CheckAttestation(ctx, network, pubKey, signingRoot, &phase0.Attestation{...})
 if err != nil {
     return err
 }
-if resp.Slashable {
-    return errors.New("slashable attestation: %s", resp.Reason)
+if check.Slashable {
+    return errors.New("slashable attestation: %s", check.Reason)
 }
 // <- Not slashable, can submit!
 
 // Check if a proposal is slashable:
-resp, err := client.CheckProposal(ctx, network, pubKey, signingRoot, &altair.BeaconBlock{...})
+check, err := client.CheckProposal(ctx, network, pubKey, signingRoot, &altair.BeaconBlock{...})
 if err != nil {
     return err
 }
-if resp.Slashable {
-    return errors.New("slashable proposal: %s", resp.Reason)
+if check.Slashable {
+    return errors.New("slashable proposal: %s", check.Reason)
 }
 // <- Not slashable, can submit!
 ```
