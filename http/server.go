@@ -19,7 +19,7 @@ type Server struct {
 	protector protector.Protector
 }
 
-func New(protector protector.Protector) *Server {
+func NewServer(protector protector.Protector) *Server {
 	s := &Server{
 		protector: protector,
 	}
@@ -37,69 +37,65 @@ func New(protector protector.Protector) *Server {
 	return s
 }
 
-func (s *Server) slashableProposal(w http.ResponseWriter, r *http.Request) {
-	type slashableProposalRequest struct {
-		PubKey      jsonPubKey          `json:"pub_key"`
-		SigningRoot jsonRoot            `json:"signing_root"`
-		Block       *altair.BeaconBlock `json:"block"`
-	}
-	type slashableProposalResponse struct {
-		Slashable bool   `json:"slashable"`
-		Reason    string `json:"slashing"`
-	}
+type checkProposalRequest struct {
+	PubKey      jsonPubKey          `json:"pub_key"`
+	SigningRoot jsonRoot            `json:"signing_root"`
+	Block       *altair.BeaconBlock `json:"block"`
+}
 
-	var request slashableProposalRequest
+func (s *Server) slashableProposal(w http.ResponseWriter, r *http.Request) {
+	var request checkProposalRequest
 	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	err := s.protector.CheckProposal(
+
+	check, err := s.protector.CheckProposal(
 		r.Context(),
 		getNetwork(r.Context()),
 		phase0.BLSPubKey(request.PubKey),
 		phase0.Root(request.SigningRoot),
 		request.Block,
 	)
-	response := slashableProposalResponse{}
 	if err != nil {
-		response.Slashable = true
-		response.Reason = err.Error()
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
 	}
-	if err := json.NewEncoder(w).Encode(response); err != nil {
+
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(check); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 }
 
-func (s *Server) slashableAttestation(w http.ResponseWriter, r *http.Request) {
-	type slashableAttestationRequest struct {
-		PubKey      jsonPubKey          `json:"pub_key"`
-		SigningRoot jsonRoot            `json:"signing_root"`
-		Attestation *phase0.Attestation `json:"attestation"`
-	}
-	type slashableAttestationResponse struct {
-		Slashable bool   `json:"slashable"`
-		Reason    string `json:"slashing"`
-	}
+type checkAttestationRequest struct {
+	PubKey      jsonPubKey          `json:"pub_key"`
+	SigningRoot jsonRoot            `json:"signing_root"`
+	Attestation *phase0.Attestation `json:"attestation"`
+}
 
-	var request slashableAttestationRequest
+func (s *Server) slashableAttestation(w http.ResponseWriter, r *http.Request) {
+	var request checkAttestationRequest
 	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	err := s.protector.CheckAttestation(
+
+	check, err := s.protector.CheckAttestation(
 		r.Context(),
 		getNetwork(r.Context()),
 		phase0.BLSPubKey(request.PubKey),
 		phase0.Root(request.SigningRoot),
 		request.Attestation,
 	)
-	response := slashableAttestationResponse{}
 	if err != nil {
-		response.Slashable = true
-		response.Reason = err.Error()
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
 	}
-	if err := json.NewEncoder(w).Encode(response); err != nil {
+
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(check); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}

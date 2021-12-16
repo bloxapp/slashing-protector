@@ -10,6 +10,6 @@ import (
 
 func main() {
 	prtc := protector.New("./test")
-	srv := httpserver.New(prtc)
+	srv := httpserver.NewServer(prtc)
 	log.Fatal(http.ListenAndServe(":8080", srv))
 }

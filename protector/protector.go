@@ -15,22 +15,38 @@ import (
 	"github.com/prysmaticlabs/prysm/validator/db/kv"
 )
 
+// Check is the result of an attestation check or a proposal check.
+type Check struct {
+	Slashable bool   `json:"slashable"`
+	Reason    string `json:"slashing"`
+}
+
+func slashable(reason string, args ...interface{}) *Check {
+	return &Check{
+		Slashable: true,
+		Reason:    fmt.Sprintf(reason, args...),
+	}
+}
+
+// Protector is the interface for the slashing protection.
 type Protector interface {
+	// CheckAttestation an attestation for a potential slashing.
 	CheckAttestation(
 		ctx context.Context,
 		network string,
 		pubKey phase0.BLSPubKey,
 		signingRoot phase0.Root,
 		attestation *phase0.Attestation,
-	) error
+	) (*Check, error)
 
+	// CheckProposal checks a proposal for a potential slashing.
 	CheckProposal(
 		ctx context.Context,
 		network string,
 		pubKey phase0.BLSPubKey,
 		signingRoot phase0.Root,
 		block *altair.BeaconBlock,
-	) error
+	) (*Check, error)
 }
 
 type protector struct {
@@ -49,10 +65,10 @@ func (p *protector) CheckAttestation(
 	pubKey phase0.BLSPubKey,
 	signingRoot phase0.Root,
 	att *phase0.Attestation,
-) error {
+) (*Check, error) {
 	conn, err := p.pool.Acquire(ctx, network, pubKey)
 	if err != nil {
-		return errors.Wrap(err, "kvpool.Acquire")
+		return nil, errors.Wrap(err, "kvpool.Acquire")
 	}
 	defer conn.Release()
 
@@ -60,18 +76,18 @@ func (p *protector) CheckAttestation(
 	// than the minimum source epoch present in that signer’s attestations.
 	lowestSourceEpoch, exists, err := conn.LowestSignedSourceEpoch(ctx, pubKey)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	if exists && types.Epoch(att.Data.Source.Epoch) < lowestSourceEpoch {
-		return fmt.Errorf(
+		return slashable(
 			"could not sign attestation lower than lowest source epoch in db, %d < %d",
 			att.Data.Source.Epoch,
 			lowestSourceEpoch,
-		)
+		), nil
 	}
 	existingSigningRoot, err := conn.SigningRootAtTargetEpoch(ctx, pubKey, types.Epoch(att.Data.Target.Epoch))
 	if err != nil {
-		return err
+		return nil, err
 	}
 	signingRootsDiffer := slashings.SigningRootsDiffer(existingSigningRoot, signingRoot)
 
@@ -79,14 +95,14 @@ func (p *protector) CheckAttestation(
 	// than or equal to the minimum target epoch present in that signer’s attestations.
 	lowestTargetEpoch, exists, err := conn.LowestSignedTargetEpoch(ctx, pubKey)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	if signingRootsDiffer && exists && types.Epoch(att.Data.Target.Epoch) <= lowestTargetEpoch {
-		return fmt.Errorf(
+		return slashable(
 			"could not sign attestation lower than or equal to lowest target epoch in db, %d <= %d",
 			att.Data.Target.Epoch,
 			lowestTargetEpoch,
-		)
+		), nil
 	}
 
 	// Convert the attestation to a type compatible with Prysm's kv.
@@ -113,18 +129,18 @@ func (p *protector) CheckAttestation(
 	if err != nil {
 		switch slashingKind {
 		case kv.DoubleVote:
-			return errors.Wrap(err, "Attestation is slashable as it is a double vote")
+			return slashable("Attestation is slashable as it is a double vote: %w", err), nil
 		case kv.SurroundingVote:
-			return errors.Wrap(err, "Attestation is slashable as it is surrounding a previous attestation")
+			return slashable("Attestation is slashable as it is surrounding a previous attestation: %w", err), nil
 		case kv.SurroundedVote:
-			return errors.Wrap(err, "Attestation is slashable as it is surrounded by a previous attestation")
+			return slashable("Attestation is slashable as it is surrounded by a previous attestation: %w", err), nil
 		}
-		return err
+		return nil, err
 	}
 	if err := conn.SaveAttestationForPubKey(ctx, pubKey, signingRoot, prysmAtt); err != nil {
-		return errors.Wrap(err, "could not save attestation history for validator public key")
+		return nil, errors.Wrap(err, "could not save attestation history for validator public key")
 	}
-	return nil
+	return &Check{}, nil
 }
 
 var (
@@ -138,20 +154,20 @@ func (p *protector) CheckProposal(
 	pubKey phase0.BLSPubKey,
 	signingRoot phase0.Root,
 	block *altair.BeaconBlock,
-) error {
+) (*Check, error) {
 	conn, err := p.pool.Acquire(ctx, network, pubKey)
 	if err != nil {
-		return errors.Wrap(err, "kvpool.Acquire")
+		return nil, errors.Wrap(err, "kvpool.Acquire")
 	}
 
 	prevSigningRoot, proposalAtSlotExists, err := conn.ProposalHistoryForSlot(ctx, pubKey, types.Slot(block.Slot))
 	if err != nil {
-		return errors.Wrap(err, "failed to get proposal history")
+		return nil, errors.Wrap(err, "failed to get proposal history")
 	}
 
 	lowestSignedProposalSlot, lowestProposalExists, err := conn.LowestSignedProposal(ctx, pubKey)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	// If a proposal exists in our history for the slot, we check the following:
@@ -160,7 +176,7 @@ func (p *protector) CheckProposal(
 	// we consider that proposal slashable.
 	signingRootIsDifferent := prevSigningRoot == params.BeaconConfig().ZeroHash || prevSigningRoot != signingRoot
 	if proposalAtSlotExists && signingRootIsDifferent {
-		return errors.New(failedBlockSignLocalErr)
+		return slashable("attempted to sign a double proposal, block rejected by local protection"), nil
 	}
 
 	// Based on EIP3076, validator should refuse to sign any proposal with slot less
@@ -168,15 +184,15 @@ func (p *protector) CheckProposal(
 	// In the case the slot of the incoming block is equal to the minimum signed proposal, we
 	// then also check the signing root is different.
 	if lowestProposalExists && signingRootIsDifferent && lowestSignedProposalSlot >= types.Slot(block.Slot) {
-		return fmt.Errorf(
+		return slashable(
 			"could not sign block with slot <= lowest signed slot in db, lowest signed slot: %d >= block slot: %d",
 			lowestSignedProposalSlot,
 			block.Slot,
-		)
+		), nil
 	}
 
 	if err := conn.SaveProposalHistoryForSlot(ctx, pubKey, types.Slot(block.Slot), signingRoot[:]); err != nil {
-		return errors.Wrap(err, "failed to save updated proposal history")
+		return nil, errors.Wrap(err, "failed to save updated proposal history")
 	}
-	return nil
+	return &Check{}, nil
 }
