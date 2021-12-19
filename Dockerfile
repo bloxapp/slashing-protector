@@ -9,7 +9,7 @@ FROM ${BUILDER_IMAGE} as builder
 # Ca-certificates is required to call HTTPS endpoints.
 RUN apk update && apk add --no-cache git ca-certificates tzdata gcc g++ && update-ca-certificates
 
-# Create protector
+# Create an unprivileged user.
 ENV USER=protector
 ENV UID=10001
 
@@ -31,9 +31,10 @@ RUN go mod verify
 COPY . .
 
 # Build the binary
-RUN GOOS=linux GOARCH=amd64 go build \
-    -ldflags='-w -s -extldflags "-static"' -a \
-    -o /app/slashing-protector .
+RUN CGO_ENABLED=1 GOOS=linux go build \
+    -o /app/slashing-protector -a \
+    -ldflags '-linkmode external -extldflags "-static -lm"' \
+    ./cmd/slashing-protector
 
 ############################
 # STEP 2 build a small image
@@ -52,5 +53,5 @@ COPY --from=builder /app/slashing-protector /app/slashing-protector
 # Use an unprivileged user.
 USER protector:protector
 
-# Run the hello binary.
+# Run the binary.
 ENTRYPOINT ["/app/slashing-protector"]
