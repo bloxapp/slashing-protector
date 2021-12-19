@@ -7,7 +7,6 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/attestantio/go-eth2-client/spec/altair"
 	"github.com/attestantio/go-eth2-client/spec/phase0"
 	"github.com/bloxapp/slashing-protector/protector"
 	"github.com/go-chi/chi/v5"
@@ -38,9 +37,9 @@ func NewServer(protector protector.Protector) *Server {
 }
 
 type checkProposalRequest struct {
-	PubKey      jsonPubKey          `json:"pub_key"`
-	SigningRoot jsonRoot            `json:"signing_root"`
-	Block       *altair.BeaconBlock `json:"block"`
+	PubKey      jsonPubKey  `json:"pub_key"`
+	SigningRoot jsonRoot    `json:"signing_root"`
+	Slot        phase0.Slot `json:"block"`
 }
 
 func (s *Server) handleCheckProposal(w http.ResponseWriter, r *http.Request) {
@@ -55,7 +54,7 @@ func (s *Server) handleCheckProposal(w http.ResponseWriter, r *http.Request) {
 		getNetwork(r.Context()),
 		phase0.BLSPubKey(request.PubKey),
 		phase0.Root(request.SigningRoot),
-		request.Block,
+		request.Slot,
 	)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)

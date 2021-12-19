@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/attestantio/go-eth2-client/spec/altair"
 	"github.com/attestantio/go-eth2-client/spec/phase0"
 	"github.com/bloxapp/slashing-protector/protector/kvpool"
 	"github.com/pkg/errors"
@@ -46,7 +45,7 @@ type Protector interface {
 		network string,
 		pubKey phase0.BLSPubKey,
 		signingRoot phase0.Root,
-		block *altair.BeaconBlock,
+		slot phase0.Slot,
 	) (*Check, error)
 }
 
@@ -151,14 +150,14 @@ func (p *protector) CheckProposal(
 	network string,
 	pubKey phase0.BLSPubKey,
 	signingRoot phase0.Root,
-	block *altair.BeaconBlock,
+	slot phase0.Slot,
 ) (*Check, error) {
 	conn, err := p.pool.Acquire(ctx, network, pubKey)
 	if err != nil {
 		return nil, errors.Wrap(err, "kvpool.Acquire")
 	}
 
-	prevSigningRoot, proposalAtSlotExists, err := conn.ProposalHistoryForSlot(ctx, pubKey, types.Slot(block.Slot))
+	prevSigningRoot, proposalAtSlotExists, err := conn.ProposalHistoryForSlot(ctx, pubKey, types.Slot(slot))
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to get proposal history")
 	}
@@ -181,15 +180,15 @@ func (p *protector) CheckProposal(
 	// than or equal to the minimum signed proposal present in the DB for that public key.
 	// In the case the slot of the incoming block is equal to the minimum signed proposal, we
 	// then also check the signing root is different.
-	if lowestProposalExists && signingRootIsDifferent && lowestSignedProposalSlot >= types.Slot(block.Slot) {
+	if lowestProposalExists && signingRootIsDifferent && lowestSignedProposalSlot >= types.Slot(slot) {
 		return slashable(
 			"could not sign block with slot <= lowest signed slot in db, lowest signed slot: %d >= block slot: %d",
 			lowestSignedProposalSlot,
-			block.Slot,
+			slot,
 		), nil
 	}
 
-	if err := conn.SaveProposalHistoryForSlot(ctx, pubKey, types.Slot(block.Slot), signingRoot[:]); err != nil {
+	if err := conn.SaveProposalHistoryForSlot(ctx, pubKey, types.Slot(slot), signingRoot[:]); err != nil {
 		return nil, errors.Wrap(err, "failed to save updated proposal history")
 	}
 	return &Check{}, nil

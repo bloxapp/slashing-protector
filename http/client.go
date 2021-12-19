@@ -4,7 +4,6 @@ import (
 	"context"
 	"net/http"
 
-	"github.com/attestantio/go-eth2-client/spec/altair"
 	"github.com/attestantio/go-eth2-client/spec/phase0"
 	"github.com/bloxapp/slashing-protector/protector"
 	"github.com/carlmjohnson/requests"
@@ -48,7 +47,7 @@ func (c *Client) CheckProposal(
 	network string,
 	pubKey phase0.BLSPubKey,
 	signingRoot phase0.Root,
-	block *altair.BeaconBlock,
+	slot phase0.Slot,
 ) (resp *protector.Check, err error) {
 	err = requests.
 		URL(c.baseURL).
@@ -57,7 +56,7 @@ func (c *Client) CheckProposal(
 		BodyJSON(&checkProposalRequest{
 			PubKey:      jsonPubKey(pubKey),
 			SigningRoot: jsonRoot(signingRoot),
-			Block:       block,
+			Slot:        slot,
 		}).
 		ToJSON(resp).
 		Fetch(ctx)
