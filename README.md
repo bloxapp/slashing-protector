@@ -25,10 +25,10 @@ Use the `client` package to interact with the `slashing-protector` API:
 import (
     "log"
     "net/http"
-    spc "github.com/bloxapp/slashing-protector/client"
+    sp "github.com/bloxapp/slashing-protector/http"
 )
 
-client := spc.New(&http.Client{})
+client := sp.NewClient(&http.Client{})
 
 // Check if an attestation is slashable:
 check, err := client.CheckAttestation(ctx, network, pubKey, signingRoot, &phase0.Attestation{...})
@@ -63,8 +63,9 @@ A good practice would be to update the dependency with every Prysm stable releas
 
 1. #️⃣ Copy the commit hash of the Prysm release or hotfix
 2. 📁 Navigate to `slashing-protector`'s directory
-3. 📦 Update the Go dependency to the commit hash:
-    ```bash
-    go get github.com/prysmaticlabs/prysm@<commit_hash>
+3. 📦 Edit `go.mod` and paste the first 12 characters of the commit hash in the Prysm dependency:
     ```
+    replace github.com/prysmaticlabs/prysm v1.4.4 => github.com/prysmaticlabs/prysm v1.4.2-0.20211005004110-<short_hash>
+    ```
+4. 🧹 Run `go mod tidy` and it'll tell you that the timestamp (right before the hash) is wrong and what it should be instead. Copy the correct timestamp and update it in `go.mod`. Run `go mod tidy` again to ensure everything's okay.
 4. 🧪 Run the tests to ensure no breaking changes.

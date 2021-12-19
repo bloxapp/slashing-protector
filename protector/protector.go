@@ -18,9 +18,10 @@ import (
 // Check is the result of an attestation check or a proposal check.
 type Check struct {
 	Slashable bool   `json:"slashable"`
-	Reason    string `json:"slashing"`
+	Reason    string `json:"slashing,omitempty"`
 }
 
+// slashable returns a slashable Check with the given reason.
 func slashable(reason string, args ...interface{}) *Check {
 	return &Check{
 		Slashable: true,
@@ -129,11 +130,11 @@ func (p *protector) CheckAttestation(
 	if err != nil {
 		switch slashingKind {
 		case kv.DoubleVote:
-			return slashable("Attestation is slashable as it is a double vote: %w", err), nil
+			return slashable("Attestation is slashable as it is a double vote: %v", err), nil
 		case kv.SurroundingVote:
-			return slashable("Attestation is slashable as it is surrounding a previous attestation: %w", err), nil
+			return slashable("Attestation is slashable as it is surrounding a previous attestation: %v", err), nil
 		case kv.SurroundedVote:
-			return slashable("Attestation is slashable as it is surrounded by a previous attestation: %w", err), nil
+			return slashable("Attestation is slashable as it is surrounded by a previous attestation: %v", err), nil
 		}
 		return nil, err
 	}
@@ -142,11 +143,6 @@ func (p *protector) CheckAttestation(
 	}
 	return &Check{}, nil
 }
-
-var (
-	failedBlockSignLocalErr    = "attempted to sign a double proposal, block rejected by local protection"
-	failedBlockSignExternalErr = "attempted a double proposal, block rejected by remote slashing protection"
-)
 
 func (p *protector) CheckProposal(
 	ctx context.Context,

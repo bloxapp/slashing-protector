@@ -9,7 +9,9 @@ import (
 )
 
 func main() {
-	prtc := protector.New("./test")
+	log.Printf("Starting...")
+	prtc := protector.New("/app/tmp")
 	srv := httpserver.NewServer(prtc)
-	log.Fatal(http.ListenAndServe(":8080", srv))
+	log.Printf("Listening on :9369")
+	log.Fatal(http.ListenAndServe(":9369", srv))
 }

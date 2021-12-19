@@ -14,6 +14,7 @@ require (
 	contrib.go.opencensus.io/exporter/jaeger v0.2.1 // indirect
 	github.com/aristanetworks/goarista v0.0.0-20200521140103-6c3304613b30 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
+	github.com/carlmjohnson/requests v0.21.12 // indirect
 	github.com/cespare/xxhash/v2 v2.1.1 // indirect
 	github.com/cpuguy83/go-md2man/v2 v2.0.0 // indirect
 	github.com/ethereum/go-ethereum v1.10.10 // indirect

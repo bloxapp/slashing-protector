@@ -29,8 +29,8 @@ func NewServer(protector protector.Protector) *Server {
 		r.Route("/{network}", func(r chi.Router) {
 			r.Use(networkCtx)
 			r.Route("/slashable", func(r chi.Router) {
-				r.Post("/proposal", s.slashableProposal)
-				r.Post("/attestation", s.slashableAttestation)
+				r.Post("/proposal", s.handleCheckProposal)
+				r.Post("/attestation", s.handleCheckAttestation)
 			})
 		})
 	})
@@ -43,7 +43,7 @@ type checkProposalRequest struct {
 	Block       *altair.BeaconBlock `json:"block"`
 }
 
-func (s *Server) slashableProposal(w http.ResponseWriter, r *http.Request) {
+func (s *Server) handleCheckProposal(w http.ResponseWriter, r *http.Request) {
 	var request checkProposalRequest
 	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
@@ -75,7 +75,7 @@ type checkAttestationRequest struct {
 	Attestation *phase0.Attestation `json:"attestation"`
 }
 
-func (s *Server) slashableAttestation(w http.ResponseWriter, r *http.Request) {
+func (s *Server) handleCheckAttestation(w http.ResponseWriter, r *http.Request) {
 	var request checkAttestationRequest
 	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
@@ -95,7 +95,10 @@ func (s *Server) slashableAttestation(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	if err := json.NewEncoder(w).Encode(check); err != nil {
+	if err := json.NewEncoder(w).Encode(struct {
+		Check *protector.Check
+		Req   checkAttestationRequest
+	}{check, request}); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
