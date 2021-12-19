@@ -7,6 +7,7 @@ import (
 	"github.com/attestantio/go-eth2-client/spec/phase0"
 	"github.com/bloxapp/slashing-protector/protector"
 	"github.com/carlmjohnson/requests"
+	"github.com/pkg/errors"
 )
 
 type Client struct {
@@ -27,19 +28,27 @@ func (c *Client) CheckAttestation(
 	pubKey phase0.BLSPubKey,
 	signingRoot phase0.Root,
 	data *phase0.AttestationData,
-) (resp *protector.Check, err error) {
-	err = requests.
+) (*protector.Check, error) {
+	var resp checkResponse
+	err := requests.
 		URL(c.baseURL).
 		Client(c.http).
-		Pathf("/v1/%s/attestation", network).
+		Pathf("/v1/%s/slashable/attestation", network).
 		BodyJSON(&checkAttestationRequest{
 			PubKey:      jsonPubKey(pubKey),
 			SigningRoot: jsonRoot(signingRoot),
 			Data:        data,
 		}).
-		ToJSON(resp).
+		AddValidator(nil). // Don't check http.StatusOK
+		ToJSON(&resp).
 		Fetch(ctx)
-	return
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to fetch")
+	}
+	if resp.Error != "" {
+		return nil, errors.Wrap(errors.New(resp.Error), "error from server")
+	}
+	return resp.Check, nil
 }
 
 func (c *Client) CheckProposal(
@@ -48,17 +57,25 @@ func (c *Client) CheckProposal(
 	pubKey phase0.BLSPubKey,
 	signingRoot phase0.Root,
 	slot phase0.Slot,
-) (resp *protector.Check, err error) {
-	err = requests.
+) (*protector.Check, error) {
+	var resp checkResponse
+	err := requests.
 		URL(c.baseURL).
 		Client(c.http).
-		Pathf("/v1/%s/proposal", network).
+		Pathf("/v1/%s/slashable/proposal", network).
 		BodyJSON(&checkProposalRequest{
 			PubKey:      jsonPubKey(pubKey),
 			SigningRoot: jsonRoot(signingRoot),
 			Slot:        slot,
 		}).
-		ToJSON(resp).
+		AddValidator(nil). // Don't check http.StatusOK
+		ToJSON(&resp).
 		Fetch(ctx)
-	return
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to fetch")
+	}
+	if resp.Error != "" {
+		return nil, errors.Wrap(errors.New(resp.Error), "error from server")
+	}
+	return resp.Check, nil
 }

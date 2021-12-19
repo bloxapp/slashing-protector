@@ -41,7 +41,7 @@ func (c *Conn) acquire(ctx context.Context) error {
 	return nil
 }
 
-// Release returns a connection to the pool.
+// Release returns the connection to the connection pool.
 func (c *Conn) Release() error {
 	if err := c.Store.Close(); err != nil {
 		return err
@@ -103,4 +103,17 @@ func (p *Pool) Acquire(ctx context.Context, network string, pubKey phase0.BLSPub
 	p.poolMu.Unlock()
 
 	return c, nil
+}
+
+// Close closes all connections in the pool.
+func (p *Pool) Close() error {
+	p.poolMu.Lock()
+	defer p.poolMu.Unlock()
+	for _, c := range p.conn {
+		if err := c.Store.Close(); err != nil {
+			return err
+		}
+	}
+	p.conn = make(map[connID]*Conn)
+	return nil
 }

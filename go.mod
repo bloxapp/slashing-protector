@@ -8,10 +8,13 @@ require (
 	github.com/attestantio/go-eth2-client v0.8.2
 	github.com/carlmjohnson/requests v0.21.12
 	github.com/go-chi/chi/v5 v5.0.7
+	github.com/go-chi/render v1.0.1
 	github.com/pkg/errors v0.9.1
 	github.com/prysmaticlabs/eth2-types v0.0.0-20210303084904-c9735a06829d
 	github.com/prysmaticlabs/prysm v1.4.4
+	github.com/stretchr/testify v1.7.0
 	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c
+	gotest.tools v2.2.0+incompatible
 )
 
 require (
@@ -20,12 +23,14 @@ require (
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/cespare/xxhash/v2 v2.1.1 // indirect
 	github.com/cpuguy83/go-md2man/v2 v2.0.0 // indirect
+	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/ethereum/go-ethereum v1.10.10 // indirect
 	github.com/fatih/color v1.10.0 // indirect
 	github.com/ferranbt/fastssz v0.0.0-20210905181407-59cf6761a7d5 // indirect
 	github.com/goccy/go-yaml v1.8.9 // indirect
 	github.com/golang/groupcache v0.0.0-20200121045136-8c9f03a8e57e // indirect
 	github.com/golang/protobuf v1.5.2 // indirect
+	github.com/google/go-cmp v0.5.5 // indirect
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.0.1 // indirect
 	github.com/k0kubun/go-ansi v0.0.0-20180517002512-3bf9e2903213 // indirect
 	github.com/klauspost/cpuid/v2 v2.0.8 // indirect
@@ -38,6 +43,7 @@ require (
 	github.com/mitchellh/colorstring v0.0.0-20190213212951-d06e56a500db // indirect
 	github.com/mitchellh/mapstructure v1.4.1 // indirect
 	github.com/mohae/deepcopy v0.0.0-20170929034955-c48cc78d4826 // indirect
+	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/prometheus/client_golang v1.11.0 // indirect
 	github.com/prometheus/client_model v0.2.0 // indirect
 	github.com/prometheus/common v0.29.0 // indirect
@@ -63,4 +69,5 @@ require (
 	google.golang.org/grpc v1.37.0 // indirect
 	google.golang.org/protobuf v1.27.1 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
+	gopkg.in/yaml.v3 v3.0.0-20210107192922-496545a6307b // indirect
 )

@@ -2,15 +2,14 @@ package http
 
 import (
 	"context"
-	"encoding/hex"
 	"encoding/json"
 	"net/http"
-	"strings"
 
 	"github.com/attestantio/go-eth2-client/spec/phase0"
 	"github.com/bloxapp/slashing-protector/protector"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
+	"github.com/go-chi/render"
 )
 
 type Server struct {
@@ -24,6 +23,7 @@ func NewServer(protector protector.Protector) *Server {
 	}
 	s.router = chi.NewRouter()
 	s.router.Use(middleware.Logger)
+	s.router.Use(render.SetContentType(render.ContentTypeJSON))
 	s.router.Route("/v1", func(r chi.Router) {
 		r.Route("/{network}", func(r chi.Router) {
 			r.Use(networkCtx)
@@ -45,11 +45,16 @@ type checkProposalRequest struct {
 func (s *Server) handleCheckProposal(w http.ResponseWriter, r *http.Request) {
 	var request checkProposalRequest
 	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		render.JSON(w, r, &checkResponse{
+			StatusCode: http.StatusBadRequest,
+			Error:      err.Error(),
+		})
 		return
 	}
 
-	check, err := s.protector.CheckProposal(
+	var resp checkResponse
+	var err error
+	resp.Check, err = s.protector.CheckProposal(
 		r.Context(),
 		getNetwork(r.Context()),
 		phase0.BLSPubKey(request.PubKey),
@@ -57,15 +62,10 @@ func (s *Server) handleCheckProposal(w http.ResponseWriter, r *http.Request) {
 		request.Slot,
 	)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
+		resp.StatusCode = http.StatusInternalServerError
+		resp.Error = err.Error()
 	}
-
-	w.Header().Set("Content-Type", "application/json")
-	if err := json.NewEncoder(w).Encode(check); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
+	render.JSON(w, r, resp)
 }
 
 type checkAttestationRequest struct {
@@ -77,11 +77,16 @@ type checkAttestationRequest struct {
 func (s *Server) handleCheckAttestation(w http.ResponseWriter, r *http.Request) {
 	var request checkAttestationRequest
 	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		render.JSON(w, r, &checkResponse{
+			StatusCode: http.StatusBadRequest,
+			Error:      err.Error(),
+		})
 		return
 	}
 
-	check, err := s.protector.CheckAttestation(
+	var resp checkResponse
+	var err error
+	resp.Check, err = s.protector.CheckAttestation(
 		r.Context(),
 		getNetwork(r.Context()),
 		phase0.BLSPubKey(request.PubKey),
@@ -89,18 +94,10 @@ func (s *Server) handleCheckAttestation(w http.ResponseWriter, r *http.Request) 
 		request.Data,
 	)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
+		resp.StatusCode = http.StatusInternalServerError
+		resp.Error = err.Error()
 	}
-
-	w.Header().Set("Content-Type", "application/json")
-	if err := json.NewEncoder(w).Encode(struct {
-		Check *protector.Check
-		Req   checkAttestationRequest
-	}{check, request}); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
+	render.JSON(w, r, resp)
 }
 
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -121,34 +118,4 @@ func networkCtx(next http.Handler) http.Handler {
 
 func getNetwork(ctx context.Context) string {
 	return ctx.Value("network").(string)
-}
-
-type jsonPubKey phase0.BLSPubKey
-
-func (j *jsonPubKey) UnmarshalJSON(data []byte) error {
-	var s string
-	if err := json.Unmarshal(data, &s); err != nil {
-		return err
-	}
-	v, err := hex.DecodeString(strings.TrimPrefix(s, "0x"))
-	if err != nil {
-		return err
-	}
-	copy(j[:], v)
-	return nil
-}
-
-type jsonRoot phase0.Root
-
-func (j *jsonRoot) UnmarshalJSON(data []byte) error {
-	var s string
-	if err := json.Unmarshal(data, &s); err != nil {
-		return err
-	}
-	v, err := hex.DecodeString(strings.TrimPrefix(s, "0x"))
-	if err != nil {
-		return err
-	}
-	copy(j[:], v)
-	return nil
 }

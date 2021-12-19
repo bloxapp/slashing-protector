@@ -49,14 +49,26 @@ type Protector interface {
 	) (*Check, error)
 }
 
+type ProtectorCloser interface {
+	Protector
+
+	// Close closes the database.
+	Close() error
+}
+
 type protector struct {
 	pool *kvpool.Pool
 }
 
-func New(dir string) Protector {
+func New(dir string) ProtectorCloser {
 	return &protector{
 		pool: kvpool.New(dir),
 	}
+}
+
+// Close closes the database.
+func (p *protector) Close() error {
+	return p.pool.Close()
 }
 
 func (p *protector) CheckAttestation(
