@@ -27,7 +27,7 @@ func (c *Client) CheckAttestation(
 	network string,
 	pubKey phase0.BLSPubKey,
 	signingRoot phase0.Root,
-	attestation *phase0.Attestation,
+	data *phase0.AttestationData,
 ) (resp *protector.Check, err error) {
 	err = requests.
 		URL(c.baseURL).
@@ -36,7 +36,7 @@ func (c *Client) CheckAttestation(
 		BodyJSON(&checkAttestationRequest{
 			PubKey:      jsonPubKey(pubKey),
 			SigningRoot: jsonRoot(signingRoot),
-			Attestation: attestation,
+			Data:        data,
 		}).
 		ToJSON(resp).
 		Fetch(ctx)

@@ -70,9 +70,9 @@ func (s *Server) handleCheckProposal(w http.ResponseWriter, r *http.Request) {
 }
 
 type checkAttestationRequest struct {
-	PubKey      jsonPubKey          `json:"pub_key"`
-	SigningRoot jsonRoot            `json:"signing_root"`
-	Attestation *phase0.Attestation `json:"attestation"`
+	PubKey      jsonPubKey              `json:"pub_key"`
+	SigningRoot jsonRoot                `json:"signing_root"`
+	Data        *phase0.AttestationData `json:"attestation"`
 }
 
 func (s *Server) handleCheckAttestation(w http.ResponseWriter, r *http.Request) {
@@ -87,7 +87,7 @@ func (s *Server) handleCheckAttestation(w http.ResponseWriter, r *http.Request) 
 		getNetwork(r.Context()),
 		phase0.BLSPubKey(request.PubKey),
 		phase0.Root(request.SigningRoot),
-		request.Attestation,
+		request.Data,
 	)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)

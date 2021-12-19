@@ -37,7 +37,7 @@ type Protector interface {
 		network string,
 		pubKey phase0.BLSPubKey,
 		signingRoot phase0.Root,
-		attestation *phase0.Attestation,
+		attestation *phase0.AttestationData,
 	) (*Check, error)
 
 	// CheckProposal checks a proposal for a potential slashing.
@@ -65,7 +65,7 @@ func (p *protector) CheckAttestation(
 	network string,
 	pubKey phase0.BLSPubKey,
 	signingRoot phase0.Root,
-	att *phase0.Attestation,
+	data *phase0.AttestationData,
 ) (*Check, error) {
 	conn, err := p.pool.Acquire(ctx, network, pubKey)
 	if err != nil {
@@ -79,14 +79,14 @@ func (p *protector) CheckAttestation(
 	if err != nil {
 		return nil, err
 	}
-	if exists && types.Epoch(att.Data.Source.Epoch) < lowestSourceEpoch {
+	if exists && types.Epoch(data.Source.Epoch) < lowestSourceEpoch {
 		return slashable(
 			"could not sign attestation lower than lowest source epoch in db, %d < %d",
-			att.Data.Source.Epoch,
+			data.Source.Epoch,
 			lowestSourceEpoch,
 		), nil
 	}
-	existingSigningRoot, err := conn.SigningRootAtTargetEpoch(ctx, pubKey, types.Epoch(att.Data.Target.Epoch))
+	existingSigningRoot, err := conn.SigningRootAtTargetEpoch(ctx, pubKey, types.Epoch(data.Target.Epoch))
 	if err != nil {
 		return nil, err
 	}
@@ -98,33 +98,35 @@ func (p *protector) CheckAttestation(
 	if err != nil {
 		return nil, err
 	}
-	if signingRootsDiffer && exists && types.Epoch(att.Data.Target.Epoch) <= lowestTargetEpoch {
+	if signingRootsDiffer && exists && types.Epoch(data.Target.Epoch) <= lowestTargetEpoch {
 		return slashable(
 			"could not sign attestation lower than or equal to lowest target epoch in db, %d <= %d",
-			att.Data.Target.Epoch,
+			data.Target.Epoch,
 			lowestTargetEpoch,
 		), nil
 	}
 
 	// Convert the attestation to a type compatible with Prysm's kv.
 	prysmAtt := &ethpb.IndexedAttestation{
-		// TODO: is AttestingIndices needed?
+		// TODO: AttestingIndices and Signatures are currently not used in
+		// Prysm's attestation check, but this might change and break the
+		// CheckSlashableAttestation call.
 		AttestingIndices: []uint64{},
+		Signature:        nil,
 
 		Data: &ethpb.AttestationData{
-			Slot:            types.Slot(att.Data.Slot),
-			CommitteeIndex:  types.CommitteeIndex(att.Data.Index),
-			BeaconBlockRoot: att.Data.BeaconBlockRoot[:],
+			Slot:            types.Slot(data.Slot),
+			CommitteeIndex:  types.CommitteeIndex(data.Index),
+			BeaconBlockRoot: data.BeaconBlockRoot[:],
 			Source: &ethpb.Checkpoint{
-				Epoch: types.Epoch(att.Data.Source.Epoch),
-				Root:  att.Data.Source.Root[:],
+				Epoch: types.Epoch(data.Source.Epoch),
+				Root:  data.Source.Root[:],
 			},
 			Target: &ethpb.Checkpoint{
-				Epoch: types.Epoch(att.Data.Target.Epoch),
-				Root:  att.Data.Target.Root[:],
+				Epoch: types.Epoch(data.Target.Epoch),
+				Root:  data.Target.Root[:],
 			},
 		},
-		Signature: att.Signature[:],
 	}
 	slashingKind, err := conn.CheckSlashableAttestation(ctx, pubKey, signingRoot, prysmAtt)
 	if err != nil {
