@@ -51,11 +51,13 @@ func TestClient_CheckAttestation_Concurrent(t *testing.T) {
 			// Check attestation for the same public keys as the other workers,
 			// hoping to do so for the same key at the same time.
 			for _, j := range rand.Perm(4) {
-				pubKey := phase0.BLSPubKey{byte(j)}
-
 				epoch := phase0.Epoch(rand.Intn(5))
-
-				_, err := client.CheckAttestation(context.Background(), "mainnet", pubKey, phase0.Root{byte(i)}, createAttestationData(epoch, epoch+1))
+				_, err := client.CheckAttestation(context.Background(),
+					"mainnet",
+					phase0.BLSPubKey{byte(j)},
+					phase0.Root{byte(i)},
+					createAttestationData(epoch, epoch+1),
+				)
 				require.NoError(t, err)
 			}
 		}(i)
