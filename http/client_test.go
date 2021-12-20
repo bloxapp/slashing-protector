@@ -13,30 +13,23 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestClient_CheckAttestation(t *testing.T) {
-	ctx := context.Background()
-	client := setupClient(t)
+func TestClient_CheckAttestation_Valid(t *testing.T) {
+	client, _ := setupClient(t)
 
-	var (
-		pubKey      phase0.BLSPubKey
-		signingRoot phase0.Root
-		data        = &phase0.AttestationData{
-			Slot:            1,
-			Index:           2,
-			BeaconBlockRoot: phase0.Root{},
-			Source: &phase0.Checkpoint{
-				Epoch: 0,
-				Root:  phase0.Root{},
-			},
-			Target: &phase0.Checkpoint{
-				Epoch: 0,
-				Root:  phase0.Root{},
-			},
-		}
-	)
-	check, err := client.CheckAttestation(ctx, "mainnet", pubKey, signingRoot, data)
+	check, err := client.CheckAttestation(context.Background(), "mainnet", phase0.BLSPubKey{}, phase0.Root{}, createAttestationData(0, 1))
 	require.NoError(t, err)
-	require.False(t, check.Slashable, check.Reason)
+	require.False(t, check.Slashable, "unexpected slashing: %s", check.Reason)
+
+	check, err = client.CheckAttestation(context.Background(), "mainnet", phase0.BLSPubKey{}, phase0.Root{}, createAttestationData(1, 2))
+	require.NoError(t, err)
+	require.False(t, check.Slashable, "unexpected slashing: %s", check.Reason)
+}
+
+func TestClient_CheckAttestation_Offline(t *testing.T) {
+	client, server := setupClient(t)
+	server.Close()
+	_, err := client.CheckAttestation(context.Background(), "mainnet", phase0.BLSPubKey{}, phase0.Root{}, createAttestationData(0, 1))
+	require.Error(t, err)
 }
 
 // TestClient_CheckAttestation_DoubleVote tests cases where an attestation
@@ -44,7 +37,7 @@ func TestClient_CheckAttestation(t *testing.T) {
 // Borrowed from Prysm at https://github.com/prysmaticlabs/prysm/blob/a9a4bb9163da0e214797eadea847b046037ede6d/validator/db/kv/attester_protection_test.go#L45
 func TestClient_CheckAttestation_DoubleVote(t *testing.T) {
 	ctx := context.Background()
-	client := setupClient(t)
+	client, _ := setupClient(t)
 
 	tests := []struct {
 		name                string
@@ -120,19 +113,8 @@ func TestClient_CheckAttestation_DoubleVote(t *testing.T) {
 	}
 }
 
-func createAttestationData(sourceEpoch, targetEpoch phase0.Epoch) *phase0.AttestationData {
-	return &phase0.AttestationData{
-		Source: &phase0.Checkpoint{
-			Epoch: sourceEpoch,
-		},
-		Target: &phase0.Checkpoint{
-			Epoch: targetEpoch,
-		},
-	}
-}
-
 // setupClient creates a test client for testing.
-func setupClient(t testing.TB) *Client {
+func setupClient(t testing.TB) (*Client, *httptest.Server) {
 	// Create a protector in a temporary directory.
 	tempDir := t.TempDir()
 	protector := protector.New(tempDir)
@@ -146,5 +128,16 @@ func setupClient(t testing.TB) *Client {
 		require.NoError(t, os.RemoveAll(tempDir), "failed to remove temporary directory")
 	})
 
-	return NewClient(http.DefaultClient, server.URL)
+	return NewClient(http.DefaultClient, server.URL), server
+}
+
+func createAttestationData(sourceEpoch, targetEpoch phase0.Epoch) *phase0.AttestationData {
+	return &phase0.AttestationData{
+		Source: &phase0.Checkpoint{
+			Epoch: sourceEpoch,
+		},
+		Target: &phase0.Checkpoint{
+			Epoch: targetEpoch,
+		},
+	}
 }
