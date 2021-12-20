@@ -3,7 +3,6 @@ package kvpool
 import (
 	"context"
 	"fmt"
-	"log"
 	"path/filepath"
 	"sync"
 
@@ -27,7 +26,6 @@ func newConn(fileName string) *Conn {
 }
 
 func (c *Conn) acquire(ctx context.Context) error {
-	log.Printf("acquiring connection to %s\n", c.fileName)
 	if err := c.semaphore.Acquire(ctx, 1); err != nil {
 		return err
 	}
@@ -54,7 +52,6 @@ func (c *Conn) Release() error {
 	if err := c.Store.Close(); err != nil {
 		return err
 	}
-	log.Printf("releasing connection to %s\n", c.fileName)
 	c.semaphore.Release(1)
 	return nil
 }

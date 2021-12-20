@@ -2,7 +2,6 @@ package http
 
 import (
 	"context"
-	"log"
 	"math/rand"
 	"net/http"
 	"net/http/httptest"
@@ -43,11 +42,7 @@ func TestClient_CheckAttestation_Concurrent(t *testing.T) {
 	client, _ := setupClient(t)
 
 	// Spawn a bunch of workers.
-	var (
-		wg           sync.WaitGroup
-		highestEpoch = map[phase0.BLSPubKey]phase0.Epoch{}
-		mutex        sync.Mutex
-	)
+	var wg sync.WaitGroup
 	for i := 0; i < 5; i++ {
 		wg.Add(1)
 		go func(i int) {
@@ -60,19 +55,8 @@ func TestClient_CheckAttestation_Concurrent(t *testing.T) {
 
 				epoch := phase0.Epoch(rand.Intn(5))
 
-				check, err := client.CheckAttestation(context.Background(), "mainnet", pubKey, phase0.Root{byte(i)}, createAttestationData(epoch, epoch+1))
+				_, err := client.CheckAttestation(context.Background(), "mainnet", pubKey, phase0.Root{byte(i)}, createAttestationData(epoch, epoch+1))
 				require.NoError(t, err)
-				func() {
-					mutex.Lock()
-					log.Printf("signed epoch %d with key %d", epoch, j)
-					defer mutex.Unlock()
-					if lastHighestEpoch, ok := highestEpoch[pubKey]; !ok || epoch > lastHighestEpoch {
-						highestEpoch[pubKey] = epoch
-						require.False(t, check.Slashable, "unexpected slashing: %s (epoch %d, key %d)", check.Reason, epoch, j)
-					} else {
-						require.True(t, check.Slashable, "expected slashing: %s (epoch %d, key %d)", check.Reason, epoch, j)
-					}
-				}()
 			}
 		}(i)
 	}
