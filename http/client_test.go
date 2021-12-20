@@ -2,10 +2,12 @@ package http
 
 import (
 	"context"
+	"log"
+	"math/rand"
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/attestantio/go-eth2-client/spec/phase0"
@@ -16,13 +18,65 @@ import (
 func TestClient_CheckAttestation_Valid(t *testing.T) {
 	client, _ := setupClient(t)
 
+	// Check a valid attestation.
 	check, err := client.CheckAttestation(context.Background(), "mainnet", phase0.BLSPubKey{}, phase0.Root{}, createAttestationData(0, 1))
 	require.NoError(t, err)
 	require.False(t, check.Slashable, "unexpected slashing: %s", check.Reason)
 
+	// Same signing root, same key -> expect slashing.
+	check, err = client.CheckAttestation(context.Background(), "mainnet", phase0.BLSPubKey{}, phase0.Root{0x1}, createAttestationData(0, 1))
+	require.NoError(t, err)
+	require.True(t, check.Slashable, "expected slashing")
+
+	// Same signing root, different key -> no slashing.
+	check, err = client.CheckAttestation(context.Background(), "mainnet", phase0.BLSPubKey{0x1}, phase0.Root{}, createAttestationData(0, 2))
+	require.NoError(t, err)
+	require.False(t, check.Slashable, "unexpected slashing: %s", check.Reason)
+
+	// Same signing root, same key, next epoch -> no slashing.
 	check, err = client.CheckAttestation(context.Background(), "mainnet", phase0.BLSPubKey{}, phase0.Root{}, createAttestationData(1, 2))
 	require.NoError(t, err)
 	require.False(t, check.Slashable, "unexpected slashing: %s", check.Reason)
+}
+
+func TestClient_CheckAttestation_Concurrent(t *testing.T) {
+	client, _ := setupClient(t)
+
+	// Spawn a bunch of workers.
+	var (
+		wg           sync.WaitGroup
+		highestEpoch = map[phase0.BLSPubKey]phase0.Epoch{}
+		mutex        sync.Mutex
+	)
+	for i := 0; i < 5; i++ {
+		wg.Add(1)
+		go func(i int) {
+			defer wg.Done()
+
+			// Check attestation for the same public keys as the other workers,
+			// hoping to do so for the same key at the same time.
+			for _, j := range rand.Perm(4) {
+				pubKey := phase0.BLSPubKey{byte(j)}
+
+				epoch := phase0.Epoch(rand.Intn(5))
+
+				check, err := client.CheckAttestation(context.Background(), "mainnet", pubKey, phase0.Root{byte(i)}, createAttestationData(epoch, epoch+1))
+				require.NoError(t, err)
+				func() {
+					mutex.Lock()
+					log.Printf("signed epoch %d with key %d", epoch, j)
+					defer mutex.Unlock()
+					if lastHighestEpoch, ok := highestEpoch[pubKey]; !ok || epoch > lastHighestEpoch {
+						highestEpoch[pubKey] = epoch
+						require.False(t, check.Slashable, "unexpected slashing: %s (epoch %d, key %d)", check.Reason, epoch, j)
+					} else {
+						require.True(t, check.Slashable, "expected slashing: %s (epoch %d, key %d)", check.Reason, epoch, j)
+					}
+				}()
+			}
+		}(i)
+	}
+	wg.Wait()
 }
 
 func TestClient_CheckAttestation_Offline(t *testing.T) {
@@ -113,6 +167,13 @@ func TestClient_CheckAttestation_DoubleVote(t *testing.T) {
 	}
 }
 
+func TestClient_CheckProposal_Valid(t *testing.T) {
+	client, _ := setupClient(t)
+	check, err := client.CheckProposal(context.Background(), "mainnet", phase0.BLSPubKey{}, phase0.Root{}, 32)
+	require.NoError(t, err)
+	require.False(t, check.Slashable, "unexpected slashing: %s", check.Reason)
+}
+
 // setupClient creates a test client for testing.
 func setupClient(t testing.TB) (*Client, *httptest.Server) {
 	// Create a protector in a temporary directory.
@@ -125,7 +186,6 @@ func setupClient(t testing.TB) (*Client, *httptest.Server) {
 	t.Cleanup(func() {
 		server.Close()
 		require.NoError(t, protector.Close(), "failed to close protector")
-		require.NoError(t, os.RemoveAll(tempDir), "failed to remove temporary directory")
 	})
 
 	return NewClient(http.DefaultClient, server.URL), server

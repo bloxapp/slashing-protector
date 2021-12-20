@@ -3,6 +3,7 @@ package kvpool
 import (
 	"context"
 	"fmt"
+	"log"
 	"path/filepath"
 	"sync"
 
@@ -26,6 +27,7 @@ func newConn(fileName string) *Conn {
 }
 
 func (c *Conn) acquire(ctx context.Context) error {
+	log.Printf("acquiring connection to %s\n", c.fileName)
 	if err := c.semaphore.Acquire(ctx, 1); err != nil {
 		return err
 	}
@@ -35,7 +37,13 @@ func (c *Conn) acquire(ctx context.Context) error {
 		&kv.Config{},
 	)
 	if err != nil {
-		return err
+		// dirty hack alert: Ignore this prometheus error as we are opening two DB with same metric name
+		// if you want to avoid this then we should pass the metric name when opening the DB which touches
+		// too many places.
+		// Borrowed from Prysm at https://github.com/prysmaticlabs/prysm/blob/29513c804caad88cf4e93eefdde0d71ea9eb6e75/tools/exploredb/main.go#L390-L395
+		if err.Error() != "duplicate metrics collector registration attempted" {
+			return fmt.Errorf("kv.NewKVStore(%s): %w", c.fileName, err)
+		}
 	}
 	c.Store = store
 	return nil
@@ -46,6 +54,7 @@ func (c *Conn) Release() error {
 	if err := c.Store.Close(); err != nil {
 		return err
 	}
+	log.Printf("releasing connection to %s\n", c.fileName)
 	c.semaphore.Release(1)
 	return nil
 }
@@ -64,7 +73,7 @@ func (id connID) fileName() string {
 type Pool struct {
 	dir    string
 	conn   map[connID]*Conn
-	poolMu sync.RWMutex
+	poolMu sync.Mutex
 }
 
 func New(dir string) *Pool {
@@ -77,32 +86,28 @@ func New(dir string) *Pool {
 // Acquire returns a connection from the pool, creating one if necessary.
 // The caller must call Release() when the connection is no longer needed.
 func (p *Pool) Acquire(ctx context.Context, network string, pubKey phase0.BLSPubKey) (*Conn, error) {
-	// Search for an existing connection for this network and public key.
-	id := connID{network: network, pubKey: pubKey}
-	p.poolMu.RLock()
-	c, ok := p.conn[id]
-	p.poolMu.RUnlock()
-	if ok {
-		// Connection exists, wait for it to become available
-		// and return it.
-		if err := c.acquire(ctx); err != nil {
-			return nil, err
-		}
-		return c, nil
-	}
-
-	// Create a new connection, add it to the pool
-	// and return it.
-	c = newConn(filepath.Join(p.dir, id.fileName()))
-	if err := c.acquire(ctx); err != nil {
+	conn := p.getOrCreate(connID{network, pubKey})
+	if err := conn.acquire(ctx); err != nil {
 		return nil, err
 	}
+	return conn, nil
+}
 
+// getOrCreate returns a connection from the pool, creating one if necessary.
+func (p *Pool) getOrCreate(id connID) *Conn {
 	p.poolMu.Lock()
-	p.conn[id] = c
-	p.poolMu.Unlock()
+	defer p.poolMu.Unlock()
 
-	return c, nil
+	if conn, ok := p.conn[id]; ok {
+		// Return existing connection.
+		return conn
+	}
+
+	// Create the connection.
+	fileName := filepath.Join(p.dir, id.fileName())
+	conn := newConn(fileName)
+	p.conn[id] = conn
+	return conn
 }
 
 // Close closes all connections in the pool.
