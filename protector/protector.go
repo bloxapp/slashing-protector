@@ -82,7 +82,7 @@ func (p *protector) CheckAttestation(
 	if err != nil {
 		return nil, errors.Wrap(err, "kvpool.Acquire")
 	}
-	defer conn.Release()
+	defer conn.Release() // TODO: log the error
 
 	// Based on EIP3076, validator should refuse to sign any attestation with source epoch less
 	// than the minimum source epoch present in that signer’s attestations.
@@ -168,6 +168,7 @@ func (p *protector) CheckProposal(
 	if err != nil {
 		return nil, errors.Wrap(err, "kvpool.Acquire")
 	}
+	defer conn.Release() // TODO: log the error
 
 	prevSigningRoot, proposalAtSlotExists, err := conn.ProposalHistoryForSlot(ctx, pubKey, types.Slot(slot))
 	if err != nil {
