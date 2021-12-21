@@ -38,6 +38,11 @@ spec:
         image: REPLACE_DOCKER_REPO:REPLACE_IMAGETAG 
         imagePullPolicy: Always
         command: ["/app/slashing-protector"]
+        env:
+        - name: DB_PATH
+          value: /app/tmp
+        - name: ADDR
+          value: ":9369"
         ports:
         - containerPort: 9369
           name: port-9369
