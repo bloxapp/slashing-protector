@@ -5,6 +5,7 @@ go 1.17
 replace github.com/prysmaticlabs/prysm v1.4.4 => github.com/prysmaticlabs/prysm v1.4.2-0.20211005004110-843ed50e0acc
 
 require (
+	github.com/alecthomas/kong v0.2.22
 	github.com/attestantio/go-eth2-client v0.8.2
 	github.com/carlmjohnson/requests v0.21.12
 	github.com/go-chi/chi/v5 v5.0.7
@@ -13,8 +14,8 @@ require (
 	github.com/prysmaticlabs/eth2-types v0.0.0-20210303084904-c9735a06829d
 	github.com/prysmaticlabs/prysm v1.4.4
 	github.com/stretchr/testify v1.7.0
+	go.uber.org/zap v1.18.1
 	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c
-	gotest.tools v2.2.0+incompatible
 )
 
 require (
@@ -30,7 +31,6 @@ require (
 	github.com/goccy/go-yaml v1.8.9 // indirect
 	github.com/golang/groupcache v0.0.0-20200121045136-8c9f03a8e57e // indirect
 	github.com/golang/protobuf v1.5.2 // indirect
-	github.com/google/go-cmp v0.5.5 // indirect
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.0.1 // indirect
 	github.com/k0kubun/go-ansi v0.0.0-20180517002512-3bf9e2903213 // indirect
 	github.com/klauspost/cpuid/v2 v2.0.8 // indirect
@@ -59,6 +59,8 @@ require (
 	github.com/urfave/cli/v2 v2.3.0 // indirect
 	go.etcd.io/bbolt v1.3.5 // indirect
 	go.opencensus.io v0.23.0 // indirect
+	go.uber.org/atomic v1.9.0 // indirect
+	go.uber.org/multierr v1.7.0 // indirect
 	golang.org/x/crypto v0.0.0-20210921155107-089bfa567519 // indirect
 	golang.org/x/net v0.0.0-20211118161319-6a13c67c3ce4 // indirect
 	golang.org/x/sys v0.0.0-20211015200801-69063c4bb744 // indirect
