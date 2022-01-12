@@ -29,6 +29,7 @@ spec:
   selector:
     matchLabels:
       app: slashing-protector
+  serviceName: slashing-protector
   template:
     metadata:
       labels:
