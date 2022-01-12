@@ -17,14 +17,15 @@ spec:
     app: slashing-protector
 ---
 apiVersion: REPLACE_API_VERSION 
-kind: Deployment
+kind: StatefulSet
 metadata:
   labels:
     app: slashing-protector
   name: slashing-protector
   namespace: REPLACE_NAMESPACE
 spec:
-  replicas: 1
+  replicas: 3
+  revisionHistoryLimit: 1
   selector:
     matchLabels:
       app: slashing-protector
