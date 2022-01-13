@@ -62,8 +62,9 @@ type connID struct {
 	pubKey  phase0.BLSPubKey
 }
 
+// fileName returns the database filename of the connection.
 func (id connID) fileName() string {
-	return fmt.Sprintf("%s-%x", id.network, id.pubKey)
+	return fmt.Sprintf("kvstore-%s-%x", id.network, id.pubKey)
 }
 
 // Pool implements a kv.Store pool with a single connection per public key in a network.
@@ -82,7 +83,11 @@ func New(dir string) *Pool {
 
 // Acquire returns a connection from the pool, creating one if necessary.
 // The caller must call Release() when the connection is no longer needed.
-func (p *Pool) Acquire(ctx context.Context, network string, pubKey phase0.BLSPubKey) (*Conn, error) {
+func (p *Pool) Acquire(
+	ctx context.Context,
+	network string,
+	pubKey phase0.BLSPubKey,
+) (*Conn, error) {
 	conn := p.getOrCreate(connID{network, pubKey})
 	if err := conn.acquire(ctx); err != nil {
 		return nil, err

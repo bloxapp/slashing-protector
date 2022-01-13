@@ -97,7 +97,11 @@ func (p *protector) CheckAttestation(
 			lowestSourceEpoch,
 		), nil
 	}
-	existingSigningRoot, err := conn.SigningRootAtTargetEpoch(ctx, pubKey, types.Epoch(data.Target.Epoch))
+	existingSigningRoot, err := conn.SigningRootAtTargetEpoch(
+		ctx,
+		pubKey,
+		types.Epoch(data.Target.Epoch),
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -145,9 +149,15 @@ func (p *protector) CheckAttestation(
 		case kv.DoubleVote:
 			return slashable("Attestation is slashable as it is a double vote: %v", err), nil
 		case kv.SurroundingVote:
-			return slashable("Attestation is slashable as it is surrounding a previous attestation: %v", err), nil
+			return slashable(
+				"Attestation is slashable as it is surrounding a previous attestation: %v",
+				err,
+			), nil
 		case kv.SurroundedVote:
-			return slashable("Attestation is slashable as it is surrounded by a previous attestation: %v", err), nil
+			return slashable(
+				"Attestation is slashable as it is surrounded by a previous attestation: %v",
+				err,
+			), nil
 		}
 		return nil, err
 	}
@@ -170,7 +180,11 @@ func (p *protector) CheckProposal(
 	}
 	defer conn.Release() // TODO: log the error
 
-	prevSigningRoot, proposalAtSlotExists, err := conn.ProposalHistoryForSlot(ctx, pubKey, types.Slot(slot))
+	prevSigningRoot, proposalAtSlotExists, err := conn.ProposalHistoryForSlot(
+		ctx,
+		pubKey,
+		types.Slot(slot),
+	)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to get proposal history")
 	}
@@ -184,16 +198,20 @@ func (p *protector) CheckProposal(
 	// If the signing root is empty (zero hash), then we consider it slashable. If signing root is not empty,
 	// we check if it is different than the incoming block's signing root. If that is the case,
 	// we consider that proposal slashable.
-	signingRootIsDifferent := prevSigningRoot == params.BeaconConfig().ZeroHash || prevSigningRoot != signingRoot
+	signingRootIsDifferent := prevSigningRoot == params.BeaconConfig().ZeroHash ||
+		prevSigningRoot != signingRoot
 	if proposalAtSlotExists && signingRootIsDifferent {
-		return slashable("attempted to sign a double proposal, block rejected by local protection"), nil
+		return slashable(
+			"attempted to sign a double proposal, block rejected by local protection",
+		), nil
 	}
 
 	// Based on EIP3076, validator should refuse to sign any proposal with slot less
 	// than or equal to the minimum signed proposal present in the DB for that public key.
 	// In the case the slot of the incoming block is equal to the minimum signed proposal, we
 	// then also check the signing root is different.
-	if lowestProposalExists && signingRootIsDifferent && lowestSignedProposalSlot >= types.Slot(slot) {
+	if lowestProposalExists && signingRootIsDifferent &&
+		lowestSignedProposalSlot >= types.Slot(slot) {
 		return slashable(
 			"could not sign block with slot <= lowest signed slot in db, lowest signed slot: %d >= block slot: %d",
 			lowestSignedProposalSlot,

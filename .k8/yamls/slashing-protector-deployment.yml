@@ -42,7 +42,7 @@ spec:
         command: ["/app/slashing-protector"]
         env:
         - name: DB_PATH
-          value: /app/tmp
+          value: /nfs-volume
         - name: ADDR
           value: ":9369"
         ports:

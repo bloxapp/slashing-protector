@@ -18,22 +18,46 @@ func TestClient_CheckAttestation_Valid(t *testing.T) {
 	client, _ := setupClient(t)
 
 	// Check a valid attestation.
-	check, err := client.CheckAttestation(context.Background(), "mainnet", phase0.BLSPubKey{}, phase0.Root{}, createAttestationData(0, 1))
+	check, err := client.CheckAttestation(
+		context.Background(),
+		"mainnet",
+		phase0.BLSPubKey{},
+		phase0.Root{},
+		createAttestationData(0, 1),
+	)
 	require.NoError(t, err)
 	require.False(t, check.Slashable, "unexpected slashing: %s", check.Reason)
 
 	// Same signing root, same key -> expect slashing.
-	check, err = client.CheckAttestation(context.Background(), "mainnet", phase0.BLSPubKey{}, phase0.Root{0x1}, createAttestationData(0, 1))
+	check, err = client.CheckAttestation(
+		context.Background(),
+		"mainnet",
+		phase0.BLSPubKey{},
+		phase0.Root{0x1},
+		createAttestationData(0, 1),
+	)
 	require.NoError(t, err)
 	require.True(t, check.Slashable, "expected slashing")
 
 	// Same signing root, different key -> no slashing.
-	check, err = client.CheckAttestation(context.Background(), "mainnet", phase0.BLSPubKey{0x1}, phase0.Root{}, createAttestationData(0, 2))
+	check, err = client.CheckAttestation(
+		context.Background(),
+		"mainnet",
+		phase0.BLSPubKey{0x1},
+		phase0.Root{},
+		createAttestationData(0, 2),
+	)
 	require.NoError(t, err)
 	require.False(t, check.Slashable, "unexpected slashing: %s", check.Reason)
 
 	// Same signing root, same key, next epoch -> no slashing.
-	check, err = client.CheckAttestation(context.Background(), "mainnet", phase0.BLSPubKey{}, phase0.Root{}, createAttestationData(1, 2))
+	check, err = client.CheckAttestation(
+		context.Background(),
+		"mainnet",
+		phase0.BLSPubKey{},
+		phase0.Root{},
+		createAttestationData(1, 2),
+	)
 	require.NoError(t, err)
 	require.False(t, check.Slashable, "unexpected slashing: %s", check.Reason)
 }
@@ -68,7 +92,13 @@ func TestClient_CheckAttestation_Concurrent(t *testing.T) {
 func TestClient_CheckAttestation_Offline(t *testing.T) {
 	client, server := setupClient(t)
 	server.Close()
-	_, err := client.CheckAttestation(context.Background(), "mainnet", phase0.BLSPubKey{}, phase0.Root{}, createAttestationData(0, 1))
+	_, err := client.CheckAttestation(
+		context.Background(),
+		"mainnet",
+		phase0.BLSPubKey{},
+		phase0.Root{},
+		createAttestationData(0, 1),
+	)
 	require.Error(t, err)
 }
 
@@ -143,7 +173,10 @@ func TestClient_CheckAttestation_DoubleVote(t *testing.T) {
 			if tt.want {
 				require.True(t, check2.Slashable, check2.Reason)
 				if !strings.Contains(check2.Reason, "double vote") &&
-					!strings.Contains(check2.Reason, "could not sign attestation lower than or equal to lowest target epoch in db") {
+					!strings.Contains(
+						check2.Reason,
+						"could not sign attestation lower than or equal to lowest target epoch in db",
+					) {
 					require.Fail(t, "unexpected reason: %s", check2.Reason)
 				}
 			} else {
@@ -155,7 +188,13 @@ func TestClient_CheckAttestation_DoubleVote(t *testing.T) {
 
 func TestClient_CheckProposal_Valid(t *testing.T) {
 	client, _ := setupClient(t)
-	check, err := client.CheckProposal(context.Background(), "mainnet", phase0.BLSPubKey{}, phase0.Root{}, 32)
+	check, err := client.CheckProposal(
+		context.Background(),
+		"mainnet",
+		phase0.BLSPubKey{},
+		phase0.Root{},
+		32,
+	)
 	require.NoError(t, err)
 	require.False(t, check.Slashable, "unexpected slashing: %s", check.Reason)
 }
