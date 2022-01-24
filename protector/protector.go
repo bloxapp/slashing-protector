@@ -28,6 +28,12 @@ func slashable(reason string, args ...interface{}) *Check {
 	}
 }
 
+// History is the slashing protection history for a public key.
+type History struct {
+	Attestations []*kv.AttestationRecord
+	Proposals    []*kv.Proposal
+}
+
 // Protector is the interface for the slashing protection.
 type Protector interface {
 	// CheckAttestation an attestation for a potential slashing.
@@ -47,6 +53,9 @@ type Protector interface {
 		signingRoot phase0.Root,
 		slot phase0.Slot,
 	) (*Check, error)
+
+	// History returns the slashing protection history for a public key.
+	History(ctx context.Context, network string, pubKey phase0.BLSPubKey) (*History, error)
 }
 
 type ProtectorCloser interface {
@@ -223,4 +232,23 @@ func (p *protector) CheckProposal(
 		return nil, errors.Wrap(err, "failed to save updated proposal history")
 	}
 	return &Check{}, nil
+}
+
+func (p *protector) History(ctx context.Context, network string, pubKey phase0.BLSPubKey) (*History, error) {
+	conn, err := p.pool.Acquire(ctx, network, pubKey)
+	if err != nil {
+		return nil, errors.Wrap(err, "kvpool.Acquire")
+	}
+	defer conn.Release() // TODO: log the error
+
+	var history History
+	history.Proposals, err = conn.ProposalHistoryForPubKey(ctx, pubKey)
+	if err != nil {
+		return nil, err
+	}
+	history.Attestations, err = conn.AttestationHistoryForPubKey(ctx, pubKey)
+	if err != nil {
+		return nil, err
+	}
+	return &history, nil
 }

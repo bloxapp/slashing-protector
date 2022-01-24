@@ -2,8 +2,10 @@ package http
 
 import (
 	"context"
+	"encoding/hex"
 	"encoding/json"
 	"net/http"
+	"strings"
 
 	"github.com/attestantio/go-eth2-client/spec/phase0"
 	"github.com/bloxapp/slashing-protector/protector"
@@ -31,6 +33,7 @@ func NewServer(protector protector.Protector) *Server {
 				r.Post("/proposal", s.handleCheckProposal)
 				r.Post("/attestation", s.handleCheckAttestation)
 			})
+			r.Get("/history/{pub_key}", s.handleHistory)
 		})
 	})
 	return s
@@ -98,6 +101,23 @@ func (s *Server) handleCheckAttestation(w http.ResponseWriter, r *http.Request) 
 		resp.Error = err.Error()
 	}
 	render.JSON(w, r, resp)
+}
+
+func (s *Server) handleHistory(w http.ResponseWriter, r *http.Request) {
+	var pubKey phase0.BLSPubKey
+	b, err := hex.DecodeString(strings.TrimPrefix(chi.URLParam(r, "pub_key"), "0x"))
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	copy(pubKey[:], b)
+
+	history, err := s.protector.History(r.Context(), getNetwork(r.Context()), pubKey)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	render.JSON(w, r, history)
 }
 
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
