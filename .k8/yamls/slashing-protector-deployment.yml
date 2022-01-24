@@ -35,6 +35,15 @@ spec:
       labels:
         app: slashing-protector
     spec:
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: kubernetes.io/role
+                operator: In
+                values:
+                - ethereum2_validators      
       containers:
       - name: slashing-protector
         image: REPLACE_DOCKER_REPO:REPLACE_IMAGETAG 
@@ -48,3 +57,14 @@ spec:
         ports:
         - containerPort: 9369
           name: port-9369
+        volumeMounts:
+        - mountPath: "/nfs-volume/"
+          name: nfs-volume
+      volumes:
+      - persistentVolumeClaim:
+          claimName: nfs-validators
+        name: nfs-volume
+      tolerations:
+      - effect: NoSchedule
+        key: kubernetes.io/role
+        operator: Exists 
