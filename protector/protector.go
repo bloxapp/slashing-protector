@@ -20,12 +20,17 @@ type Check struct {
 	Reason    string `json:"slashing,omitempty"`
 }
 
-// slashable returns a slashable Check with the given reason.
+// slashable returns a Check that is slashable for the given reason.
 func slashable(reason string, args ...interface{}) *Check {
 	return &Check{
 		Slashable: true,
 		Reason:    fmt.Sprintf(reason, args...),
 	}
+}
+
+// notSlashable returns a Check that is not slashable.
+func notSlashable() *Check {
+	return &Check{}
 }
 
 // History is the slashing protection history for a public key.
@@ -177,7 +182,7 @@ func (p *protector) CheckAttestation(
 	if err := conn.SaveAttestationForPubKey(ctx, pubKey, signingRoot, prysmAtt); err != nil {
 		return nil, errors.Wrap(err, "could not save attestation history for validator public key")
 	}
-	return &Check{}, nil
+	return notSlashable(), nil
 }
 
 func (p *protector) CheckProposal(
@@ -235,7 +240,7 @@ func (p *protector) CheckProposal(
 	if err := conn.SaveProposalHistoryForSlot(ctx, pubKey, types.Slot(slot), signingRoot[:]); err != nil {
 		return nil, errors.Wrap(err, "failed to save updated proposal history")
 	}
-	return &Check{}, nil
+	return notSlashable(), nil
 }
 
 func (p *protector) History(ctx context.Context, network string, pubKey phase0.BLSPubKey) (*History, error) {
