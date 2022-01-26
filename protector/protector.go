@@ -34,7 +34,7 @@ type History struct {
 	Proposals    []*kv.Proposal
 }
 
-// Protector is the interface for the slashing protection.
+// Protector is the interface for slashing protection.
 type Protector interface {
 	// CheckAttestation an attestation for a potential slashing.
 	CheckAttestation(
@@ -58,6 +58,7 @@ type Protector interface {
 	History(ctx context.Context, network string, pubKey phase0.BLSPubKey) (*History, error)
 }
 
+// ProtectorCloser is a Protector that must be closed.
 type ProtectorCloser interface {
 	Protector
 
@@ -69,6 +70,9 @@ type protector struct {
 	pool *kvpool.Pool
 }
 
+// New returns a concurrent-safe Protector that leverages Prysm's KVStore
+// to store slashing protection data with validator-level isolation,
+// so that each public key has it's own separate database for every network.
 func New(dir string) ProtectorCloser {
 	return &protector{
 		pool: kvpool.New(dir),
