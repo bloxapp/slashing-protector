@@ -12,6 +12,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/render"
+	types "github.com/prysmaticlabs/eth2-types"
 )
 
 type Server struct {
@@ -104,6 +105,7 @@ func (s *Server) handleCheckAttestation(w http.ResponseWriter, r *http.Request) 
 }
 
 func (s *Server) handleHistory(w http.ResponseWriter, r *http.Request) {
+	// Decode the public key.
 	var pubKey phase0.BLSPubKey
 	b, err := hex.DecodeString(strings.TrimPrefix(chi.URLParam(r, "pub_key"), "0x"))
 	if err != nil {
@@ -112,12 +114,48 @@ func (s *Server) handleHistory(w http.ResponseWriter, r *http.Request) {
 	}
 	copy(pubKey[:], b)
 
+	// Get the history.
 	history, err := s.protector.History(r.Context(), getNetwork(r.Context()), pubKey)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	render.JSON(w, r, history)
+
+	// Compact the proposals & attestations for a smaller JSON response.
+	type proposal struct {
+		SigningRoot string     `json:"signing_root"`
+		Slot        types.Slot `json:"slot"`
+	}
+	proposals := make([]proposal, len(history.Proposals))
+	for i, p := range history.Proposals {
+		proposals[i] = proposal{
+			SigningRoot: hex.EncodeToString(p.SigningRoot[:]),
+			Slot:        p.Slot,
+		}
+	}
+
+	type attestation struct {
+		SigningRoot string      `json:"signing_root"`
+		Source      types.Epoch `json:"source"`
+		Target      types.Epoch `json:"target"`
+	}
+	attestations := make([]attestation, len(history.Attestations))
+	for i, a := range history.Attestations {
+		attestations[i] = attestation{
+			SigningRoot: hex.EncodeToString(a.SigningRoot[:]),
+			Source:      a.Source,
+			Target:      a.Target,
+		}
+	}
+
+	// Respond with the history.
+	render.JSON(w, r, struct {
+		Proposals    []proposal    `json:"proposals"`
+		Attestations []attestation `json:"attestations"`
+	}{
+		Proposals:    proposals,
+		Attestations: attestations,
+	})
 }
 
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
