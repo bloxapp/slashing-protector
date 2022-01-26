@@ -13,15 +13,18 @@ import (
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/render"
 	types "github.com/prysmaticlabs/eth2-types"
+	"go.uber.org/zap"
 )
 
 type Server struct {
-	router    *chi.Mux
+	logger    *zap.Logger
 	protector protector.Protector
+	router    *chi.Mux
 }
 
-func NewServer(protector protector.Protector) *Server {
+func NewServer(logger *zap.Logger, protector protector.Protector) *Server {
 	s := &Server{
+		logger:    logger,
 		protector: protector,
 	}
 	s.router = chi.NewRouter()
@@ -81,6 +84,7 @@ type checkAttestationRequest struct {
 func (s *Server) handleCheckAttestation(w http.ResponseWriter, r *http.Request) {
 	var request checkAttestationRequest
 	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+		s.logger.Error("failed to decode checkAttestationRequest", zap.Error(err))
 		render.JSON(w, r, &checkResponse{
 			StatusCode: http.StatusBadRequest,
 			Error:      err.Error(),
@@ -98,6 +102,11 @@ func (s *Server) handleCheckAttestation(w http.ResponseWriter, r *http.Request) 
 		request.Data,
 	)
 	if err != nil {
+		s.logger.Error(
+			"failed at CheckAttestation",
+			zap.Any("attestation", request),
+			zap.Error(err),
+		)
 		resp.StatusCode = http.StatusInternalServerError
 		resp.Error = err.Error()
 	}
@@ -117,6 +126,7 @@ func (s *Server) handleHistory(w http.ResponseWriter, r *http.Request) {
 	// Get the history.
 	history, err := s.protector.History(r.Context(), getNetwork(r.Context()), pubKey)
 	if err != nil {
+		s.logger.Error("failed to get history", zap.Error(err))
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}

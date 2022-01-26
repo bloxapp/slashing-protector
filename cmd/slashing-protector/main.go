@@ -31,7 +31,7 @@ func main() {
 
 	// Create the server and start it.
 	prtc := protector.New(CLI.DbPath)
-	srv := protectorhttp.NewServer(prtc)
+	srv := protectorhttp.NewServer(logger, prtc)
 	err = http.ListenAndServe(CLI.Addr, srv)
 	logger.Fatal("ListenAndServe", zap.Error(err))
 }
