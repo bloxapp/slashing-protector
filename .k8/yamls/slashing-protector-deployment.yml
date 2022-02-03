@@ -16,7 +16,7 @@ spec:
   selector:
     app: slashing-protector
 ---
-apiVersion: REPLACE_API_VERSION 
+apiVersion: REPLACE_API_VERSION
 kind: StatefulSet
 metadata:
   labels:
@@ -39,34 +39,34 @@ spec:
         nodeAffinity:
           requiredDuringSchedulingIgnoredDuringExecution:
             nodeSelectorTerms:
-            - matchExpressions:
-              - key: kubernetes.io/role
-                operator: In
-                values:
-                - ethereum2_validators      
+              - matchExpressions:
+                  - key: kubernetes.io/role
+                    operator: In
+                    values:
+                      - ethereum2_validators
       containers:
         - name: slashing-protector
-          image: REPLACE_DOCKER_REPO:REPLACE_IMAGETAG 
+          image: REPLACE_DOCKER_REPO:REPLACE_IMAGETAG
           imagePullPolicy: Always
           command: ["/app/slashing-protector"]
           env:
-          - name: DB_PATH
-            value: /data
-          - name: ADDR
-            value: ":9369"
+            - name: DB_PATH
+              value: /data
+            - name: ADDR
+              value: ":9369"
           ports:
-          - containerPort: 9369
-            name: port-9369
+            - containerPort: 9369
+              name: port-9369
           volumeMounts:
-          - mountPath: "/data/"
-            name: nfs-volume
-        volumes:
+            - mountPath: "/data/"
+              name: nfs-volume
+      volumes:
         - persistentVolumeClaim:
             claimName: nfs-validators
           name: nfs-volume
-        tolerations:
+      tolerations:
         - effect: NoSchedule
           key: kubernetes.io/role
-          operator: Exists 
+          operator: Exists
       securityContext:
         fsGroup: 20001
