@@ -39,7 +39,7 @@ RUN CGO_ENABLED=1 GOOS=linux go build \
 ############################
 # STEP 2 build a small image
 ############################
-FROM scratch
+FROM alpine:3.15
 
 # Import from builder.
 COPY --from=builder /usr/share/zoneinfo /usr/share/zoneinfo
