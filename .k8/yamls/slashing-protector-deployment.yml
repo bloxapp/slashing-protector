@@ -45,28 +45,28 @@ spec:
                 values:
                 - ethereum2_validators      
       containers:
-      - name: slashing-protector
-        image: REPLACE_DOCKER_REPO:REPLACE_IMAGETAG 
-        imagePullPolicy: Always
-        command: ["/app/slashing-protector"]
-        env:
-        - name: DB_PATH
-          value: /data
-        - name: ADDR
-          value: ":9369"
-        ports:
-        - containerPort: 9369
-          name: port-9369
-        volumeMounts:
-        - mountPath: "/data/"
+        - name: slashing-protector
+          image: REPLACE_DOCKER_REPO:REPLACE_IMAGETAG 
+          imagePullPolicy: Always
+          command: ["/app/slashing-protector"]
+          env:
+          - name: DB_PATH
+            value: /data
+          - name: ADDR
+            value: ":9369"
+          ports:
+          - containerPort: 9369
+            name: port-9369
+          volumeMounts:
+          - mountPath: "/data/"
+            name: nfs-volume
+        volumes:
+        - persistentVolumeClaim:
+            claimName: nfs-validators
           name: nfs-volume
-      volumes:
-      - persistentVolumeClaim:
-          claimName: nfs-validators
-        name: nfs-volume
-      tolerations:
-      - effect: NoSchedule
-        key: kubernetes.io/role
-        operator: Exists 
-      securitycontext:
+        tolerations:
+        - effect: NoSchedule
+          key: kubernetes.io/role
+          operator: Exists 
+      securityContext:
         fsGroup: 20001
