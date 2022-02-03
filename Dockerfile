@@ -9,11 +9,21 @@ FROM ${BUILDER_IMAGE} as builder
 # Ca-certificates is required to call HTTPS endpoints.
 RUN apk update && apk add --no-cache git ca-certificates tzdata gcc g++ && update-ca-certificates
 
+WORKDIR /app
+
+COPY go.mod go.sum ./
+RUN go mod download
+RUN go mod verify
+
+COPY . .
+
 # Create an unprivileged user.
 ENV USER=protector
 ENV UID=10001
+ENV GID=20001
 
 # See https://stackoverflow.com/a/55757473/12429735
+RUN addgroup --gid "${GID}" "${USER}"
 RUN adduser \
     --disabled-password \
     --gecos "" \
@@ -21,19 +31,8 @@ RUN adduser \
     --shell "/sbin/nologin" \
     --no-create-home \
     --uid "${UID}" \
+    --ingroup "${USER}" \
     "${USER}"
-
-WORKDIR /app
-
-# Give permissions to /data
-RUN mkdir /data && chown -R "${USER}:${USER}" /data
-VOLUME /data
-
-COPY go.mod go.sum ./
-RUN go mod download
-RUN go mod verify
-
-COPY . .
 
 # Build the binary
 RUN CGO_ENABLED=1 GOOS=linux go build \

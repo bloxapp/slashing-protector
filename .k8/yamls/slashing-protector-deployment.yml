@@ -68,3 +68,5 @@ spec:
       - effect: NoSchedule
         key: kubernetes.io/role
         operator: Exists 
+      securitycontext:
+        fsGroup: 20001
