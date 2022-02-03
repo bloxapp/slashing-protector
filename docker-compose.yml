@@ -7,8 +7,8 @@ services:
     ports:
       - 9369:9369
     volumes:
-      - ./tmp:/app/tmp
+      - ./tmp:/data
     environment:
-      - DB_PATH=${DB_PATH:-/app/tmp}
-      - ADDR=${ADDR:-9369}
+      - DB_PATH=${DB_PATH:-/data}
+      - ADDR=${ADDR:-:9369}
     restart: always

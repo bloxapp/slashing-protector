@@ -11,7 +11,7 @@ import (
 )
 
 var CLI struct {
-	DbPath string `env:"DB_PATH" description:"Path to the database directory" default:"./tmp"`
+	DbPath string `env:"DB_PATH" description:"Path to the database directory" default:"/slashing-protector-data"`
 	Addr   string `env:"ADDR" description:"Address to listen on" default:":9369"`
 }
 

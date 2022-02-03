@@ -22,7 +22,12 @@ RUN adduser \
     --no-create-home \
     --uid "${UID}" \
     "${USER}"
+
 WORKDIR /app
+
+# Give permissions to /data
+RUN mkdir /data && chown -R "${USER}:${USER}" /data
+VOLUME /data
 
 COPY go.mod go.sum ./
 RUN go mod download

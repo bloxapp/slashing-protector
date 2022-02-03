@@ -51,14 +51,14 @@ spec:
         command: ["/app/slashing-protector"]
         env:
         - name: DB_PATH
-          value: /nfs-volume
+          value: /data
         - name: ADDR
           value: ":9369"
         ports:
         - containerPort: 9369
           name: port-9369
         volumeMounts:
-        - mountPath: "/nfs-volume/"
+        - mountPath: "/data/"
           name: nfs-volume
       volumes:
       - persistentVolumeClaim:
