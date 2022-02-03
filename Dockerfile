@@ -17,23 +17,6 @@ RUN go mod verify
 
 COPY . .
 
-# Create an unprivileged user.
-ENV USER=protector
-ENV UID=10001
-ENV GID=20001
-
-# See https://stackoverflow.com/a/55757473/12429735
-RUN addgroup --gid "${GID}" "${USER}"
-RUN adduser \
-    --disabled-password \
-    --gecos "" \
-    --home "/nonexistent" \
-    --shell "/sbin/nologin" \
-    --no-create-home \
-    --uid "${UID}" \
-    --ingroup "${USER}" \
-    "${USER}"
-
 # Build the binary
 RUN CGO_ENABLED=1 GOOS=linux go build \
     -o /app/slashing-protector -a \
@@ -53,9 +36,6 @@ COPY --from=builder /etc/group /etc/group
 
 # Copy our static executable
 COPY --from=builder /app/slashing-protector /app/slashing-protector
-
-# Use an unprivileged user.
-USER protector:protector
 
 # Run the binary.
 ENTRYPOINT ["/app/slashing-protector"]
