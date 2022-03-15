@@ -7,6 +7,7 @@ import (
 	"sync"
 
 	"github.com/attestantio/go-eth2-client/spec/phase0"
+	"github.com/pkg/errors"
 	"github.com/prysmaticlabs/prysm/validator/db/kv"
 	"golang.org/x/sync/semaphore"
 )
@@ -14,8 +15,9 @@ import (
 // Conn is a connection acquired from the pool.
 type Conn struct {
 	*kv.Store
-	fileName  string
-	semaphore *semaphore.Weighted
+	fileName       string
+	semaphore      *semaphore.Weighted
+	cancelStoreCtx func()
 }
 
 func newConn(fileName string) *Conn {
@@ -25,12 +27,25 @@ func newConn(fileName string) *Conn {
 	}
 }
 
-func (c *Conn) acquire(ctx context.Context) error {
+func (c *Conn) acquire(ctx context.Context) (err error) {
 	if err := c.semaphore.Acquire(ctx, 1); err != nil {
-		return err
+		return errors.Wrap(err, "failed to acquire semaphore")
 	}
+	defer func() {
+		if err != nil {
+			c.semaphore.Release(1)
+		}
+	}()
+
+	// kv.NewKVStore starts a background goroutine which only stops when the
+	// context is cancelled. However, cancelling the context before
+	// Store is closed causes some methods (such as SaveAttestationForPubKey)
+	// to hang forever.
+	// Therefore, we create a context and cancel it only after Store is closed.
+	ctxStore, cancelStore := context.WithCancel(context.Background())
+	c.cancelStoreCtx = cancelStore
 	store, err := kv.NewKVStore(
-		ctx,
+		ctxStore,
 		c.fileName,
 		&kv.Config{},
 	)
@@ -49,11 +64,14 @@ func (c *Conn) acquire(ctx context.Context) error {
 
 // Release returns the connection to the connection pool.
 func (c *Conn) Release() error {
-	if err := c.Store.Close(); err != nil {
-		return err
+	defer c.semaphore.Release(1)
+	if c.cancelStoreCtx != nil {
+		c.cancelStoreCtx()
 	}
-	c.semaphore.Release(1)
-	return nil
+	if c.Store != nil {
+		return c.Store.Close()
+	}
+	return errors.New("connection not acquired")
 }
 
 // connID is a unique identifier for a connection.
