@@ -30,6 +30,7 @@ func NewServer(logger *zap.Logger, protector protector.Protector) *Server {
 	s.router = chi.NewRouter()
 	s.router.Use(middleware.Logger)
 	s.router.Use(render.SetContentType(render.ContentTypeJSON))
+	s.router.Mount("/debug", middleware.Profiler())
 	s.router.Route("/v1", func(r chi.Router) {
 		r.Route("/{network}", func(r chi.Router) {
 			r.Use(networkCtx)

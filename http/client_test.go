@@ -12,6 +12,7 @@ import (
 	"github.com/attestantio/go-eth2-client/spec/phase0"
 	"github.com/bloxapp/slashing-protector/protector"
 	"github.com/stretchr/testify/require"
+	"go.uber.org/zap"
 )
 
 func TestClient_CheckAttestation_Valid(t *testing.T) {
@@ -206,7 +207,7 @@ func setupClient(t testing.TB) (*Client, *httptest.Server) {
 	protector := protector.New(tempDir)
 
 	// Create a test server.
-	server := httptest.NewServer(NewServer(protector))
+	server := httptest.NewServer(NewServer(zap.NewNop(), protector))
 
 	t.Cleanup(func() {
 		server.Close()
