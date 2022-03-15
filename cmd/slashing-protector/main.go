@@ -22,6 +22,7 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+	defer logger.Sync()
 
 	// Display the configuration. Don't expose sensitive attributes!
 	logger.Debug("Starting slashing-protector",
