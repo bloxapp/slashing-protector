@@ -31,6 +31,11 @@ func (c *Conn) acquire(ctx context.Context) (err error) {
 	if err := c.semaphore.Acquire(ctx, 1); err != nil {
 		return errors.Wrap(err, "failed to acquire semaphore")
 	}
+	defer func() {
+		if err != nil {
+			c.semaphore.Release(1)
+		}
+	}()
 
 	// kv.NewKVStore starts a background goroutine which only stops when the
 	// context is cancelled. However, cancelling the context before
@@ -59,12 +64,14 @@ func (c *Conn) acquire(ctx context.Context) (err error) {
 
 // Release returns the connection to the connection pool.
 func (c *Conn) Release() error {
-	if err := c.Store.Close(); err != nil {
-		return err
+	defer c.semaphore.Release(1)
+	if c.cancelStoreCtx != nil {
+		c.cancelStoreCtx()
 	}
-	c.cancelStoreCtx()
-	c.semaphore.Release(1)
-	return nil
+	if c.Store != nil {
+		return c.Store.Close()
+	}
+	return errors.New("connection not acquired")
 }
 
 // connID is a unique identifier for a connection.
