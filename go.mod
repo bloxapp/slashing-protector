@@ -73,3 +73,6 @@ require (
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.0-20210107192922-496545a6307b // indirect
 )
+
+// "go.mode throwing error when prysm point dirctly to v2.X so replace to v2.0.1 here"
+replace github.com/prysmaticlabs/prysm => github.com/prysmaticlabs/prysm v1.4.2-0.20220616131429-4de92bafc4bb
