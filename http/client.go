@@ -79,3 +79,8 @@ func (c *Client) CheckProposal(
 	}
 	return resp.Check, nil
 }
+
+// History returns the slashing protection history for a public key.
+func (c *Client) History(ctx context.Context, network string, pubKey phase0.BLSPubKey) (*protector.History, error) {
+	panic("not implemented") // TODO: Implement
+}
