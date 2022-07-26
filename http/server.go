@@ -40,8 +40,8 @@ func NewServer(logger *zap.Logger, protector protector.Protector) *Server {
 			})
 			r.Get("/history/{pub_key}", s.handleHistory)
 		})
+		s.router.Get("/metrics", s.handleMetrics)
 	})
-	s.router.Get("/metrics", s.handleMetrics)
 	return s
 }
 

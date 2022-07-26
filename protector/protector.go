@@ -98,6 +98,11 @@ func (p *protector) Close() error {
 	return p.pool.Close()
 }
 
+// Pool returns the underlying connection pool.
+func (p *protector) Pool() *kvpool.Pool {
+	return p.pool
+}
+
 func (p *protector) CheckAttestation(
 	ctx context.Context,
 	network string,
