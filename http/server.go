@@ -41,6 +41,7 @@ func NewServer(logger *zap.Logger, protector protector.Protector) *Server {
 			r.Get("/history/{pub_key}", s.handleHistory)
 		})
 	})
+	s.router.Get("/metrics", s.handleMetrics)
 	return s
 }
 
@@ -166,6 +167,17 @@ func (s *Server) handleHistory(w http.ResponseWriter, r *http.Request) {
 	}{
 		Proposals:    proposals,
 		Attestations: attestations,
+	})
+}
+
+func (s *Server) handleMetrics(w http.ResponseWriter, r *http.Request) {
+	pooler, ok := s.protector.(protector.ProtectorPooler)
+	if !ok {
+		http.Error(w, "not supported", http.StatusInternalServerError)
+		return
+	}
+	render.JSON(w, r, map[string]interface{}{
+		"AcquiredConns": pooler.Pool().AcquiredConns(),
 	})
 }
 

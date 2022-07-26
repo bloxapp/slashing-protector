@@ -78,3 +78,16 @@ func (p *Pool) Close() error {
 	p.conn = make(map[connID]*Conn)
 	return nil
 }
+
+// AcquiredConns returns the number of connections currently acquired.
+func (p *Pool) AcquiredConns() int {
+	p.poolMu.Lock()
+	defer p.poolMu.Unlock()
+	var n int
+	for _, c := range p.conn {
+		if c.Store != nil {
+			n++
+		}
+	}
+	return n
+}
