@@ -12,6 +12,7 @@ import (
 	ethpb "github.com/prysmaticlabs/prysm/proto/prysm/v1alpha1"
 	"github.com/prysmaticlabs/prysm/proto/prysm/v1alpha1/slashings"
 	"github.com/prysmaticlabs/prysm/validator/db/kv"
+	"go.uber.org/multierr"
 )
 
 // Check is the result of an attestation check or a proposal check.
@@ -71,6 +72,14 @@ type ProtectorCloser interface {
 	Close() error
 }
 
+// ProtectorPooler is a protector that exposes it's underlying connection pool.
+type ProtectorPooler interface {
+	Protector
+
+	// Pool returns the underlying connection pool.
+	Pool() *kvpool.Pool
+}
+
 type protector struct {
 	pool *kvpool.Pool
 }
@@ -89,18 +98,25 @@ func (p *protector) Close() error {
 	return p.pool.Close()
 }
 
+// Pool returns the underlying connection pool.
+func (p *protector) Pool() *kvpool.Pool {
+	return p.pool
+}
+
 func (p *protector) CheckAttestation(
 	ctx context.Context,
 	network string,
 	pubKey phase0.BLSPubKey,
 	signingRoot phase0.Root,
 	data *phase0.AttestationData,
-) (*Check, error) {
+) (check *Check, err error) {
 	conn, err := p.pool.Acquire(ctx, network, pubKey)
 	if err != nil {
 		return nil, errors.Wrap(err, "kvpool.Acquire")
 	}
-	defer conn.Release() // TODO: log the error
+	defer func() {
+		err = p.release(err, conn)
+	}()
 
 	// Based on EIP3076, validator should refuse to sign any attestation with source epoch less
 	// than the minimum source epoch present in that signer’s attestations.
@@ -191,12 +207,14 @@ func (p *protector) CheckProposal(
 	pubKey phase0.BLSPubKey,
 	signingRoot phase0.Root,
 	slot phase0.Slot,
-) (*Check, error) {
+) (check *Check, err error) {
 	conn, err := p.pool.Acquire(ctx, network, pubKey)
 	if err != nil {
 		return nil, errors.Wrap(err, "kvpool.Acquire")
 	}
-	defer conn.Release() // TODO: log the error
+	defer func() {
+		err = p.release(err, conn)
+	}()
 
 	prevSigningRoot, proposalAtSlotExists, err := conn.ProposalHistoryForSlot(
 		ctx,
@@ -243,14 +261,16 @@ func (p *protector) CheckProposal(
 	return notSlashable(), nil
 }
 
-func (p *protector) History(ctx context.Context, network string, pubKey phase0.BLSPubKey) (*History, error) {
+func (p *protector) History(ctx context.Context, network string, pubKey phase0.BLSPubKey) (history *History, err error) {
 	conn, err := p.pool.Acquire(ctx, network, pubKey)
 	if err != nil {
 		return nil, errors.Wrap(err, "kvpool.Acquire")
 	}
-	defer conn.Release() // TODO: log the error
+	defer func() {
+		err = p.release(err, conn)
+	}()
 
-	var history History
+	history = &History{}
 	history.Proposals, err = conn.ProposalHistoryForPubKey(ctx, pubKey)
 	if err != nil {
 		return nil, err
@@ -259,5 +279,13 @@ func (p *protector) History(ctx context.Context, network string, pubKey phase0.B
 	if err != nil {
 		return nil, err
 	}
-	return &history, nil
+	return history, nil
+}
+
+// release releases conn and returns an error combined with the given error.
+func (p *protector) release(err error, conn *kvpool.Conn) error {
+	return multierr.Append(
+		errors.Wrap(conn.Release(), "failed to release connection"),
+		err,
+	)
 }
