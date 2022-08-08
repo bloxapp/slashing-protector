@@ -72,6 +72,9 @@ func (p *Pool) Close() error {
 	defer p.poolMu.Unlock()
 	for _, c := range p.conn {
 		if err := c.Release(); err != nil {
+			if err == ErrConnNotAcquired {
+				continue
+			}
 			return errors.Wrap(err, "Conn.Release")
 		}
 	}

@@ -9,6 +9,8 @@ import (
 	"golang.org/x/sync/semaphore"
 )
 
+var ErrConnNotAcquired = errors.New("connection not acquired")
+
 // Conn is a connection acquired from the pool.
 type Conn struct {
 	*kv.Store
@@ -61,12 +63,12 @@ func (c *Conn) acquire(ctx context.Context) (err error) {
 
 // Release returns the connection to the connection pool.
 func (c *Conn) Release() error {
+	if c.Store == nil {
+		return ErrConnNotAcquired
+	}
 	defer c.semaphore.Release(1)
 	if c.cancelStoreCtx != nil {
 		defer c.cancelStoreCtx()
-	}
-	if c.Store == nil {
-		return errors.New("connection not acquired")
 	}
 	if err := c.Store.Close(); err != nil {
 		return errors.Wrap(err, "kv.Store.Close")
