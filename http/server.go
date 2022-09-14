@@ -6,13 +6,14 @@ import (
 	"encoding/json"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/attestantio/go-eth2-client/spec/phase0"
 	"github.com/bloxapp/slashing-protector/protector"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/render"
-	types "github.com/prysmaticlabs/eth2-types"
+	types "github.com/prysmaticlabs/prysm/v3/consensus-types/primitives"
 	"go.uber.org/zap"
 )
 
@@ -52,6 +53,8 @@ type checkProposalRequest struct {
 }
 
 func (s *Server) handleCheckProposal(w http.ResponseWriter, r *http.Request) {
+	start := time.Now()
+
 	var request checkProposalRequest
 	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
 		render.JSON(w, r, &checkResponse{
@@ -62,6 +65,25 @@ func (s *Server) handleCheckProposal(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var resp checkResponse
+	defer func() {
+		s.logger.Debug("CheckProposal",
+			zap.Uint64("slot", uint64(request.Slot)),
+			zap.String("pub_key", hex.EncodeToString(request.PubKey[:])),
+			zap.String("signing_root", hex.EncodeToString(request.SigningRoot[:])),
+			zap.Any("result", resp.Check),
+			zap.Any("error", resp.Error),
+			zap.Duration("took", time.Since(start)),
+		)
+	}()
+
+	if request.Slot == 0 {
+		render.JSON(w, r, &checkResponse{
+			StatusCode: http.StatusBadRequest,
+			Error:      "can not propose at genesis slot",
+		})
+		return
+	}
+
 	var err error
 	resp.Check, err = s.protector.CheckProposal(
 		r.Context(),
@@ -78,12 +100,14 @@ func (s *Server) handleCheckProposal(w http.ResponseWriter, r *http.Request) {
 }
 
 type checkAttestationRequest struct {
-	PubKey      jsonPubKey              `json:"pub_key"`
-	SigningRoot jsonRoot                `json:"signing_root"`
-	Data        *phase0.AttestationData `json:"attestation"`
+	PubKey      jsonPubKey             `json:"pub_key"`
+	SigningRoot jsonRoot               `json:"signing_root"`
+	Data        phase0.AttestationData `json:"attestation"`
 }
 
 func (s *Server) handleCheckAttestation(w http.ResponseWriter, r *http.Request) {
+	start := time.Now()
+
 	var request checkAttestationRequest
 	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
 		s.logger.Error("failed to decode checkAttestationRequest", zap.Error(err))
@@ -94,14 +118,27 @@ func (s *Server) handleCheckAttestation(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
+	// Log.
 	var resp checkResponse
+	defer func() {
+		s.logger.Debug("CheckAttestation",
+			zap.String("pub_key", hex.EncodeToString(request.PubKey[:])),
+			zap.String("signing_root", hex.EncodeToString(request.SigningRoot[:])),
+			zap.Any("data", request.Data),
+			zap.Any("result", resp.Check),
+			zap.Any("error", resp.Error),
+			zap.Duration("took", time.Since(start)),
+		)
+	}()
+
+	// Check
 	var err error
 	resp.Check, err = s.protector.CheckAttestation(
 		r.Context(),
 		getNetwork(r.Context()),
 		phase0.BLSPubKey(request.PubKey),
 		phase0.Root(request.SigningRoot),
-		request.Data,
+		&request.Data,
 	)
 	if err != nil {
 		s.logger.Error(

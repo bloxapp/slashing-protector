@@ -5,7 +5,7 @@ import (
 	"fmt"
 
 	"github.com/pkg/errors"
-	"github.com/prysmaticlabs/prysm/validator/db/kv"
+	"github.com/prysmaticlabs/prysm/v3/validator/db/kv"
 	"golang.org/x/sync/semaphore"
 )
 
@@ -61,13 +61,13 @@ func (c *Conn) acquire(ctx context.Context) (err error) {
 
 // Release returns the connection to the connection pool.
 func (c *Conn) Release() error {
-	defer c.semaphore.Release(1)
 	if c.cancelStoreCtx != nil {
 		defer c.cancelStoreCtx()
 	}
 	if c.Store == nil {
-		return errors.New("connection not acquired")
+		return nil
 	}
+	defer c.semaphore.Release(1)
 	if err := c.Store.Close(); err != nil {
 		return errors.Wrap(err, "kv.Store.Close")
 	}

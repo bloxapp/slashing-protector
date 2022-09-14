@@ -29,6 +29,10 @@ func (c *Client) CheckAttestation(
 	signingRoot phase0.Root,
 	data *phase0.AttestationData,
 ) (*protector.Check, error) {
+	if data == nil {
+		return nil, errors.New("data is required")
+	}
+
 	var resp checkResponse
 	err := requests.
 		URL(c.baseURL).
@@ -37,7 +41,7 @@ func (c *Client) CheckAttestation(
 		BodyJSON(&checkAttestationRequest{
 			PubKey:      jsonPubKey(pubKey),
 			SigningRoot: jsonRoot(signingRoot),
-			Data:        data,
+			Data:        *data,
 		}).
 		AddValidator(nil). // Don't check http.StatusOK
 		ToJSON(&resp).
