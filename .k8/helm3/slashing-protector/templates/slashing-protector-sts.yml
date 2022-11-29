@@ -1,0 +1,67 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: slashing-protector-svc
+  namespace: {{ .Values.namespace }}
+  labels:
+    app: slashing-protector
+spec:
+  type: {{ .Values.service.type }}
+  ports:
+    - port: {{ .Values.service.port }}
+      protocol: TCP
+      targetPort: 9369
+      name: port-9369
+  selector:
+    app: slashing-protector
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  labels:
+    app: slashing-protector
+  name: slashing-protector
+  namespace: {{ .Values.namespace }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  revisionHistoryLimit: 1
+  selector:
+    matchLabels:
+      app: slashing-protector
+  serviceName: slashing-protector
+  template:
+    metadata:
+      labels:
+        app: slashing-protector
+    spec:
+      containers:
+      - name: {{ .Chart.Name }}
+        image:  "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+        imagePullPolicy: {{ .Values.image.pullPolicy }}
+        command: ["/app/slashing-protector"]
+        env:
+        - name: DB_PATH
+          value: /data
+        - name: ADDR
+          value: ":9369"
+        ports:
+        - containerPort: 9369
+          name: port-9369
+        volumeMounts:
+        - mountPath: "/data/"
+          name: nfs-volume
+        resources:
+          {{- toYaml .Values.resources | nindent 12 }}
+      {{- with .Values.affinity }}
+      volumes:
+      - persistentVolumeClaim:
+          claimName: nfs-validators
+        name: nfs-volume
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
