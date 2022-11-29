@@ -69,8 +69,6 @@ Helm deploy on stage:
       --wait
       slashing-protector
       .k8/helm3/slashing-protector/
-      --dry-run
-      --debug
   only:
     - stage      
 
