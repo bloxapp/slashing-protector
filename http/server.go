@@ -29,6 +29,7 @@ func NewServer(logger *zap.Logger, protector protector.Protector) *Server {
 		protector: protector,
 	}
 	s.router = chi.NewRouter()
+	s.router.Use(middleware.Timeout(60 * time.Second))
 	s.router.Use(middleware.Logger)
 	s.router.Use(render.SetContentType(render.ContentTypeJSON))
 	s.router.Mount("/debug", middleware.Profiler())
