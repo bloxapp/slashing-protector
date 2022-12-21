@@ -5,7 +5,7 @@ import (
 	"fmt"
 
 	"github.com/pkg/errors"
-	"github.com/prysmaticlabs/prysm/v3/validator/db/kv"
+	"github.com/prysmaticlabs/prysm/validator/db/kv"
 	"golang.org/x/sync/semaphore"
 )
 

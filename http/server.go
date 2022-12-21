@@ -13,7 +13,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/render"
-	types "github.com/prysmaticlabs/prysm/v3/consensus-types/primitives"
+	types "github.com/prysmaticlabs/prysm/consensus-types/primitives"
 	"go.uber.org/zap"
 )
 
