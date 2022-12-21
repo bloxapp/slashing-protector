@@ -23,6 +23,55 @@ variables:
 
 
 
+Build stage Docker image:
+  stage: build
+  tags:
+    - blox-infra-stage
+  script:
+    - docker build -t $IMAGE_NAME:$CI_BUILD_REF -f Dockerfile .
+    - DOCKER_LOGIN_TO_INFRA_STAGE_REPO=`$ECRLOGIN_INFRA_STAGE`
+    - docker tag $IMAGE_NAME:$CI_BUILD_REF $DOCKER_REPO_INFRA_STAGE:$CI_BUILD_REF
+    - $DOCKER_LOGIN_TO_INFRA_STAGE_REPO && docker push $DOCKER_REPO_INFRA_STAGE:$CI_BUILD_REF
+  only:
+    - stage
+
+#Deploy to blox-infra-stage cluster:
+#  stage: deploy
+#  tags:
+#    - blox-infra-stage
+#  script:
+#    - apk add bash
+#    - export K8S_API_VERSION=$INFRA_STAGE_K8_API_VERSION
+#    - curl -LO https://storage.googleapis.com/kubernetes-release/release/v1.17.0/bin/linux/amd64/kubectl
+#    - chmod 755 kubectl
+#    - mv kubectl /usr/bin/
+#    - .k8/scripts/deploy-yamls-on-k8s.sh $DOCKER_REPO_INFRA_STAGE $CI_BUILD_REF validators $APP_REPLICAS_INFRA_STAGE blox-infra-stage kubernetes-admin@blox-infra stage.bloxinfra.com $K8S_API_VERSION
+#  only:
+#    - stage
+
+Helm deploy on stage:
+  stage: deploy
+  tags:
+    - blox-infra-stage
+  image: devth/helm:v3.3.4
+  script:
+    - mkdir ~/.kube/
+    - echo $STAGE_KUBECONFIG | base64 -d > kubeconfig
+    - mv kubeconfig ~/.kube/
+    - export KUBECONFIG=~/.kube/kubeconfig
+    - kubectl config get-contexts
+    - IMAGE_TAG=$CI_BUILD_REF
+    - helm upgrade
+      --install
+      --namespace validators
+      --set image.tag=$IMAGE_TAG
+      --values .k8/helm3/slashing-protector/stage-values.yaml
+      --wait
+      slashing-protector
+      .k8/helm3/slashing-protector/
+  only:
+    - stage      
+
 #blox-infra-prod
 Build prod Docker image:
   stage: build
@@ -35,18 +84,41 @@ Build prod Docker image:
     - $DOCKER_LOGIN_TO_INFRA_PROD_REPO && docker push $DOCKER_REPO_INFRA_PROD:$CI_BUILD_REF
 
   only:
-    - stage
+    - main
 
-Deploy to blox-infra-prod cluster:
+#Deploy to blox-infra-prod cluster:
+#  stage: deploy
+#  tags:
+#    - blox-infra-prod
+#  script:
+#    - apk add bash
+#    - export K8S_API_VERSION=$INFRA_PROD_K8_API_VERSION
+#    - curl -LO https://storage.googleapis.com/kubernetes-release/release/v1.17.0/bin/linux/amd64/kubectl
+#    - chmod 755 kubectl
+#    - mv kubectl /usr/bin/
+#    - .k8/scripts/deploy-yamls-on-k8s.sh $DOCKER_REPO_INFRA_PROD $CI_BUILD_REF validators $APP_REPLICAS_INFRA_PROD blox-infra-prod kubernetes-admin@blox-infra-prod bloxinfra.com $K8S_API_VERSION
+#  only:
+#    - main
+
+Helm deploy on production:
   stage: deploy
   tags:
     - blox-infra-prod
+  image: devth/helm:v3.3.4
   script:
-    - apk add bash
-    - export K8S_API_VERSION=$INFRA_PROD_K8_API_VERSION
-    - curl -LO https://storage.googleapis.com/kubernetes-release/release/v1.17.0/bin/linux/amd64/kubectl
-    - chmod 755 kubectl
-    - mv kubectl /usr/bin/
-    - .k8/scripts/deploy-yamls-on-k8s.sh $DOCKER_REPO_INFRA_PROD $CI_BUILD_REF validators $APP_REPLICAS_INFRA_PROD blox-infra-prod kubernetes-admin@blox-infra-prod bloxinfra.com $K8S_API_VERSION
+    - mkdir ~/.kube/
+    - echo $PROD_KUBECONFIG | base64 -d > kubeconfig
+    - mv kubeconfig ~/.kube/
+    - export KUBECONFIG=~/.kube/kubeconfig
+    - kubectl config get-contexts
+    - IMAGE_TAG=$CI_BUILD_REF
+    - helm upgrade
+      --install
+      --namespace validators
+      --set image.tag=$IMAGE_TAG
+      --values .k8/helm3/slashing-protector/prod-values.yaml
+      --wait
+      slashing-protector
+      .k8/helm3/slashing-protector/
   only:
-    - stage
+    - main

@@ -1,22 +1,39 @@
 ---
-apiVersion: REPLACE_API_VERSION
+apiVersion: v1
+kind: Service
+metadata:
+  name: slashing-protector-svc
+  namespace: REPLACE_NAMESPACE
+  labels:
+    app: slashing-protector
+spec:
+  type: ClusterIP
+  ports:
+    - port: 9369
+      protocol: TCP
+      targetPort: 9369
+      name: port-9369
+  selector:
+    app: slashing-protector
+---
+apiVersion: REPLACE_API_VERSION 
 kind: StatefulSet
 metadata:
   labels:
-    app: slashing-protector-test
-  name: slashing-protector-test
+    app: slashing-protector
+  name: slashing-protector
   namespace: REPLACE_NAMESPACE
 spec:
-  replicas: 1
+  replicas: 3
   revisionHistoryLimit: 1
   selector:
     matchLabels:
-      app: slashing-protector-test
-  serviceName: slashing-protector-test
+      app: slashing-protector
+  serviceName: slashing-protector
   template:
     metadata:
       labels:
-        app: slashing-protector-test
+        app: slashing-protector
     spec:
       affinity:
         nodeAffinity:
@@ -28,7 +45,7 @@ spec:
                 values:
                 - ethereum2_validators      
       containers:
-      - name: slashing-protector-test
+      - name: slashing-protector
         image: REPLACE_DOCKER_REPO:REPLACE_IMAGETAG 
         imagePullPolicy: Always
         command: ["/app/slashing-protector"]
