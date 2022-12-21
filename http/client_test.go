@@ -18,7 +18,7 @@ import (
 func TestClient_CheckAttestation(t *testing.T) {
 	client, _ := setupClient(t)
 
-	checkAttestation := func(network string, pubKey phase0.BLSPubKey, signingRoot phase0.Root, attestation *phase0.AttestationData, expectSlashing bool) {
+	checkAttestation := func(network string, pubKey phase0.BLSPubKey, signingRoot phase0.Root, attestation *phase0.AttestationData, expectSlashing bool, expectReason string) {
 		check, err := client.CheckAttestation(
 			context.Background(),
 			network,
@@ -29,25 +29,48 @@ func TestClient_CheckAttestation(t *testing.T) {
 		require.NoError(t, err)
 		if expectSlashing {
 			require.True(t, check.Slashable, "expected slashing: %s", check.Reason)
+			if expectReason != "" {
+				require.Contains(t, check.Reason, expectReason)
+			}
 		} else {
 			require.False(t, check.Slashable, "unexpected slashing: %s", check.Reason)
 		}
 	}
 
 	// Check a valid attestation.
-	checkAttestation("mainnet", phase0.BLSPubKey{0x1}, phase0.Root{0x1}, createAttestationData(0, 1), false)
+	checkAttestation("mainnet", phase0.BLSPubKey{1}, phase0.Root{1}, createAttestationData(3, 4), false, "")
 
-	// Same signing root, same key -> no slashing.
-	checkAttestation("mainnet", phase0.BLSPubKey{0x1}, phase0.Root{0x1}, createAttestationData(0, 1), false)
+	// Same signing root -> no slashing.
+	checkAttestation("mainnet", phase0.BLSPubKey{1}, phase0.Root{1}, createAttestationData(3, 4), false, "")
 
-	// Different signing root, same key -> expect slashing.
-	checkAttestation("mainnet", phase0.BLSPubKey{0x1}, phase0.Root{0x2}, createAttestationData(0, 1), true)
+	// Lower than minimum source epoch -> expect slashing.
+	checkAttestation("mainnet", phase0.BLSPubKey{1}, phase0.Root{1}, createAttestationData(2, 5), true, "")
 
-	// Same signing root, different key -> no slashing.
-	checkAttestation("mainnet", phase0.BLSPubKey{0x2}, phase0.Root{0x1}, createAttestationData(0, 2), false)
+	// Different signing root -> expect slashing.
+	checkAttestation("mainnet", phase0.BLSPubKey{1}, phase0.Root{2}, createAttestationData(3, 4), true, "")
 
-	// Same signing root, same key, next epoch -> no slashing.
-	checkAttestation("mainnet", phase0.BLSPubKey{0x1}, phase0.Root{0x1}, createAttestationData(1, 2), false)
+	// Different signing root, lower target epoch -> expect slashing.
+	checkAttestation("mainnet", phase0.BLSPubKey{1}, phase0.Root{2}, createAttestationData(3, 3), true, "")
+
+	// Different signing root, higher target epoch -> no slashing.
+	checkAttestation("mainnet", phase0.BLSPubKey{1}, phase0.Root{3}, createAttestationData(3, 5), false, "")
+
+	// Different signing root, higher source epoch, higher target epoch -> no slashing.
+	checkAttestation("mainnet", phase0.BLSPubKey{1}, phase0.Root{3}, createAttestationData(4, 5), false, "")
+
+	// Different signing root, higher source epoch, higher target epoch (again) -> expect slashing (double vote).
+	checkAttestation("mainnet", phase0.BLSPubKey{1}, phase0.Root{byte(4)}, createAttestationData(3, 5), true, "double vote")
+
+	// Lower source epoch, higher target epoch -> expect slashing (surrounding).
+	for root := 1; root <= 5; root++ {
+		checkAttestation("mainnet", phase0.BLSPubKey{1}, phase0.Root{byte(root)}, createAttestationData(3, 6), true, "surrounding")
+	}
+
+	// Different signing root, different public key -> no slashing.
+	checkAttestation("mainnet", phase0.BLSPubKey{2}, phase0.Root{4}, createAttestationData(3, 4), false, "")
+
+	// Different signing root, different network -> no slashing.
+	checkAttestation("prater", phase0.BLSPubKey{2}, phase0.Root{4}, createAttestationData(3, 4), false, "")
 }
 
 func TestClient_CheckAttestation_Concurrent(t *testing.T) {
@@ -194,22 +217,22 @@ func TestClient_CheckProposal(t *testing.T) {
 	}
 
 	// Check a valid proposal.
-	checkProposal("mainnet", phase0.BLSPubKey{0x1}, phase0.Root{0x1}, 32, false)
+	checkProposal("mainnet", phase0.BLSPubKey{1}, phase0.Root{1}, 32, false)
 
 	// Different network -> no slashing.
-	checkProposal("prater", phase0.BLSPubKey{0x1}, phase0.Root{0x2}, 32, false)
+	checkProposal("prater", phase0.BLSPubKey{1}, phase0.Root{2}, 32, false)
 
 	// Different slot -> no slashing.
-	checkProposal("mainnet", phase0.BLSPubKey{0x1}, phase0.Root{0x1}, 33, false)
+	checkProposal("mainnet", phase0.BLSPubKey{1}, phase0.Root{1}, 33, false)
 
 	// Same signing root -> no slashing.
-	checkProposal("mainnet", phase0.BLSPubKey{0x1}, phase0.Root{0x1}, 32, false)
+	checkProposal("mainnet", phase0.BLSPubKey{1}, phase0.Root{1}, 32, false)
 
 	// Different signing root -> expect slashing.
-	checkProposal("mainnet", phase0.BLSPubKey{0x1}, phase0.Root{0x2}, 32, true)
+	checkProposal("mainnet", phase0.BLSPubKey{1}, phase0.Root{2}, 32, true)
 
 	// Different public key -> no slashing.
-	checkProposal("mainnet", phase0.BLSPubKey{0x2}, phase0.Root{0x1}, 32, false)
+	checkProposal("mainnet", phase0.BLSPubKey{2}, phase0.Root{1}, 32, false)
 }
 
 // setupClient creates a test client for testing.
