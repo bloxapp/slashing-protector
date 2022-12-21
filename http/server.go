@@ -48,6 +48,7 @@ func NewServer(logger *zap.Logger, protector protector.Protector) *Server {
 }
 
 type checkProposalRequest struct {
+	Timestamp   int64       `json:"timestamp"`
 	PubKey      jsonPubKey  `json:"pub_key"`
 	SigningRoot jsonRoot    `json:"signing_root"`
 	Slot        phase0.Slot `json:"block"`
@@ -65,7 +66,7 @@ func (s *Server) handleCheckProposal(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var resp checkResponse
+	resp := checkResponse{Timestamp: request.Timestamp}
 	defer func() {
 		s.logger.Debug("CheckProposal",
 			zap.Uint64("slot", uint64(request.Slot)),
@@ -101,6 +102,7 @@ func (s *Server) handleCheckProposal(w http.ResponseWriter, r *http.Request) {
 }
 
 type checkAttestationRequest struct {
+	Timestamp   int64                  `json:"timestamp"`
 	PubKey      jsonPubKey             `json:"pub_key"`
 	SigningRoot jsonRoot               `json:"signing_root"`
 	Data        phase0.AttestationData `json:"attestation"`
@@ -120,7 +122,7 @@ func (s *Server) handleCheckAttestation(w http.ResponseWriter, r *http.Request) 
 	}
 
 	// Log.
-	var resp checkResponse
+	resp := checkResponse{Timestamp: request.Timestamp}
 	defer func() {
 		s.logger.Debug("CheckAttestation",
 			zap.String("pub_key", hex.EncodeToString(request.PubKey[:])),

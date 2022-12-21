@@ -12,6 +12,7 @@ import (
 )
 
 type checkResponse struct {
+	Timestamp  int64            `json:"timestamp"`
 	Check      *protector.Check `json:"check"`
 	StatusCode int              `json:"status_code"`
 	Error      string           `json:"error,omitempty"`
