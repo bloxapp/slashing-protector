@@ -15,52 +15,39 @@ import (
 	"go.uber.org/zap"
 )
 
-func TestClient_CheckAttestation_Valid(t *testing.T) {
+func TestClient_CheckAttestation(t *testing.T) {
 	client, _ := setupClient(t)
 
-	// Check a valid attestation.
-	check, err := client.CheckAttestation(
-		context.Background(),
-		"mainnet",
-		phase0.BLSPubKey{},
-		phase0.Root{},
-		createAttestationData(0, 1),
-	)
-	require.NoError(t, err)
-	require.False(t, check.Slashable, "unexpected slashing: %s", check.Reason)
+	checkAttestation := func(network string, pubKey phase0.BLSPubKey, signingRoot phase0.Root, attestation *phase0.AttestationData, expectSlashing bool) {
+		check, err := client.CheckAttestation(
+			context.Background(),
+			network,
+			pubKey,
+			signingRoot,
+			attestation,
+		)
+		require.NoError(t, err)
+		if expectSlashing {
+			require.True(t, check.Slashable, "expected slashing: %s", check.Reason)
+		} else {
+			require.False(t, check.Slashable, "unexpected slashing: %s", check.Reason)
+		}
+	}
 
-	// Same signing root, same key -> expect slashing.
-	check, err = client.CheckAttestation(
-		context.Background(),
-		"mainnet",
-		phase0.BLSPubKey{},
-		phase0.Root{0x1},
-		createAttestationData(0, 1),
-	)
-	require.NoError(t, err)
-	require.True(t, check.Slashable, "expected slashing")
+	// Check a valid attestation.
+	checkAttestation("mainnet", phase0.BLSPubKey{0x1}, phase0.Root{0x1}, createAttestationData(0, 1), false)
+
+	// Same signing root, same key -> no slashing.
+	checkAttestation("mainnet", phase0.BLSPubKey{0x1}, phase0.Root{0x1}, createAttestationData(0, 1), false)
+
+	// Different signing root, same key -> expect slashing.
+	checkAttestation("mainnet", phase0.BLSPubKey{0x1}, phase0.Root{0x2}, createAttestationData(0, 1), true)
 
 	// Same signing root, different key -> no slashing.
-	check, err = client.CheckAttestation(
-		context.Background(),
-		"mainnet",
-		phase0.BLSPubKey{0x1},
-		phase0.Root{},
-		createAttestationData(0, 2),
-	)
-	require.NoError(t, err)
-	require.False(t, check.Slashable, "unexpected slashing: %s", check.Reason)
+	checkAttestation("mainnet", phase0.BLSPubKey{0x2}, phase0.Root{0x1}, createAttestationData(0, 2), false)
 
 	// Same signing root, same key, next epoch -> no slashing.
-	check, err = client.CheckAttestation(
-		context.Background(),
-		"mainnet",
-		phase0.BLSPubKey{},
-		phase0.Root{},
-		createAttestationData(1, 2),
-	)
-	require.NoError(t, err)
-	require.False(t, check.Slashable, "unexpected slashing: %s", check.Reason)
+	checkAttestation("mainnet", phase0.BLSPubKey{0x1}, phase0.Root{0x1}, createAttestationData(1, 2), false)
 }
 
 func TestClient_CheckAttestation_Concurrent(t *testing.T) {
@@ -187,17 +174,42 @@ func TestClient_CheckAttestation_DoubleVote(t *testing.T) {
 	}
 }
 
-func TestClient_CheckProposal_Valid(t *testing.T) {
+func TestClient_CheckProposal(t *testing.T) {
 	client, _ := setupClient(t)
-	check, err := client.CheckProposal(
-		context.Background(),
-		"mainnet",
-		phase0.BLSPubKey{},
-		phase0.Root{},
-		32,
-	)
-	require.NoError(t, err)
-	require.False(t, check.Slashable, "unexpected slashing: %s", check.Reason)
+
+	checkProposal := func(network string, pubKey phase0.BLSPubKey, signingRoot phase0.Root, slot phase0.Slot, expectSlashing bool) {
+		check, err := client.CheckProposal(
+			context.Background(),
+			network,
+			pubKey,
+			signingRoot,
+			32,
+		)
+		require.NoError(t, err)
+		if expectSlashing {
+			require.True(t, check.Slashable, "expected slashing: %s", check.Reason)
+		} else {
+			require.False(t, check.Slashable, "unexpected slashing: %s", check.Reason)
+		}
+	}
+
+	// Check a valid proposal.
+	checkProposal("mainnet", phase0.BLSPubKey{0x1}, phase0.Root{0x1}, 32, false)
+
+	// Different network -> no slashing.
+	checkProposal("prater", phase0.BLSPubKey{0x1}, phase0.Root{0x2}, 32, false)
+
+	// Different slot -> no slashing.
+	checkProposal("mainnet", phase0.BLSPubKey{0x1}, phase0.Root{0x1}, 33, false)
+
+	// Same signing root -> no slashing.
+	checkProposal("mainnet", phase0.BLSPubKey{0x1}, phase0.Root{0x1}, 32, false)
+
+	// Different signing root -> expect slashing.
+	checkProposal("mainnet", phase0.BLSPubKey{0x1}, phase0.Root{0x2}, 32, true)
+
+	// Different public key -> no slashing.
+	checkProposal("mainnet", phase0.BLSPubKey{0x2}, phase0.Root{0x1}, 32, false)
 }
 
 // setupClient creates a test client for testing.
