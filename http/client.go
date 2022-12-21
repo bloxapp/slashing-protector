@@ -93,3 +93,8 @@ func (c *Client) CheckProposal(
 	}
 	return resp.Check, nil
 }
+
+func (c *Client) History(ctx context.Context, network string, pubKey phase0.BLSPubKey) (history *protector.History, err error) {
+	// TODO: Implement.
+	return nil, nil
+}
