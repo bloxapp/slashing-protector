@@ -13,10 +13,6 @@ spec:
       protocol: TCP
       targetPort: 9369
       name: port-9369
-    - port: 6060
-      protocol: TCP
-      targetPort: 6060
-      name: ext-6060
   selector:
     app: slashing-protector
 ---
@@ -58,13 +54,9 @@ spec:
           value: /data
         - name: ADDR
           value: ":9369"
-        - name: PPROF
-          value: ":6060"
         ports:
         - containerPort: 9369
           name: port-9369
-        - containerPort: 6060
-          name: ext-6060
         volumeMounts:
         - mountPath: "/data/"
           name: nfs-volume
