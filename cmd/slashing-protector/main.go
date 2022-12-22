@@ -9,6 +9,7 @@ import (
 	"github.com/alecthomas/kong"
 	protectorhttp "github.com/bloxapp/slashing-protector/http"
 	"github.com/bloxapp/slashing-protector/protector"
+	"github.com/sirupsen/logrus"
 	"go.uber.org/zap"
 )
 
@@ -19,6 +20,8 @@ var CLI struct {
 
 func main() {
 	kong.Parse(&CLI)
+
+	logrus.SetLevel(logrus.DebugLevel)
 
 	logger, err := zap.NewDevelopment()
 	if err != nil {
