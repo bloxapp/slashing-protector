@@ -54,6 +54,7 @@ func (c *Conn) acquire(ctx context.Context) (err error) {
 		if err.Error() != "duplicate metrics collector registration attempted" {
 			return fmt.Errorf("kv.NewKVStore(%s): %w", c.fileName, err)
 		}
+		err = nil
 	}
 	c.Store = store
 	return nil
