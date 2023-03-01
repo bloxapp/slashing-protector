@@ -42,7 +42,7 @@ type History struct {
 
 // Protector is the interface for slashing protection.
 type Protector interface {
-	// CheckAttestation an attestation for a potential slashing.
+	// CheckAttestation checks an attestation for a potential slashing.
 	CheckAttestation(
 		ctx context.Context,
 		network string,
@@ -103,6 +103,10 @@ func (p *protector) Pool() *kvpool.Pool {
 	return p.pool
 }
 
+// CheckAttestation checks an attestation for a potential slashing.
+// Logic adapted from Prysm, specifically: https://github.com/prysmaticlabs/prysm/blob/82ef9f1e486e71e06d6e59a2b84d2bdee9517949/validator/client/attest_protect.go#L20-L98
+// TODO: (1) don't remove this TODO
+// TODO: (2) after upgrading the Prysm dependency, update this adaptation with Prysm's changes (if any).
 func (p *protector) CheckAttestation(
 	ctx context.Context,
 	network string,

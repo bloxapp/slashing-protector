@@ -68,4 +68,13 @@ A good practice would be to update the dependency with every Prysm stable releas
     replace github.com/prysmaticlabs/prysm v1.4.4 => github.com/prysmaticlabs/prysm v1.4.2-0.20211005004110-<short_hash>
     ```
 4. 🧹 Run `go mod tidy` and it'll tell you that the timestamp (right before the hash) is wrong and what it should be instead. Copy the correct timestamp and update it in `go.mod`. Run `go mod tidy` again to ensure everything's okay.
-4. 🧪 Run the tests to ensure no breaking changes.
+5. 📕 Read the TODO above [CheckAttestation](https://github.com/bloxapp/slashing-protector/blob/40a87a234d5e17280ae1a023b90b34f74065871e/protector/protector.go#L109-L205), and if needed, update accordingly!
+6. 🧪 Run the tests to ensure no breaking changes.
+
+### Testing
+
+```bash
+go test ./...
+```
+
+👆 Nothin' fancy.

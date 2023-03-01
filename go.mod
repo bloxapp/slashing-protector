@@ -10,6 +10,7 @@ require (
 	github.com/go-chi/render v1.0.2
 	github.com/pkg/errors v0.9.1
 	github.com/prysmaticlabs/prysm/v3 v3.1.1
+	github.com/sirupsen/logrus v1.9.0
 	github.com/stretchr/testify v1.8.0
 	go.uber.org/multierr v1.8.0
 	go.uber.org/zap v1.23.0
@@ -56,7 +57,6 @@ require (
 	github.com/rivo/uniseg v0.2.0 // indirect
 	github.com/russross/blackfriday/v2 v2.1.0 // indirect
 	github.com/schollz/progressbar/v3 v3.11.0 // indirect
-	github.com/sirupsen/logrus v1.9.0 // indirect
 	github.com/thomaso-mirodin/intmath v0.0.0-20160323211736-5dc6d854e46e // indirect
 	github.com/uber/jaeger-client-go v2.25.0+incompatible // indirect
 	github.com/urfave/cli/v2 v2.16.3 // indirect
