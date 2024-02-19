@@ -4,17 +4,20 @@ import (
 	"context"
 	"encoding/hex"
 	"encoding/json"
+	"fmt"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
 	"github.com/attestantio/go-eth2-client/spec/phase0"
-	"github.com/bloxapp/slashing-protector/protector"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/render"
 	types "github.com/prysmaticlabs/prysm/v3/consensus-types/primitives"
 	"go.uber.org/zap"
+
+	"github.com/bloxapp/slashing-protector/protector"
 )
 
 type Server struct {
@@ -47,11 +50,39 @@ func NewServer(logger *zap.Logger, protector protector.Protector) *Server {
 	return s
 }
 
+type compatibleSlot phase0.Slot
+
+func (cs *compatibleSlot) UnmarshalJSON(input []byte) error {
+	// Try to unmarshal as a string first
+	var strVal string
+	errStr := json.Unmarshal(input, &strVal)
+	if errStr == nil {
+		// If successful, parse the string to get the numeric value
+		numVal, errParse := strconv.ParseUint(strVal, 10, 64)
+		if errParse != nil {
+			return errParse // Parsing error from string to uint64
+		}
+		*cs = compatibleSlot(numVal)
+		return nil
+	}
+
+	// Fallback to unmarshaling as a number if it wasn't quoted as a string
+	var numVal uint64
+	errNum := json.Unmarshal(input, &numVal)
+	if errNum == nil {
+		*cs = compatibleSlot(numVal)
+		return nil
+	}
+
+	// If both attempts failed, return an error indicating the input was neither a valid string nor a valid number
+	return fmt.Errorf("invalid slot value, not a valid string or number: %v", input)
+}
+
 type checkProposalRequest struct {
-	Timestamp   int64       `json:"timestamp"`
-	PubKey      jsonPubKey  `json:"pub_key"`
-	SigningRoot jsonRoot    `json:"signing_root"`
-	Slot        phase0.Slot `json:"block"`
+	Timestamp   int64          `json:"timestamp"`
+	PubKey      jsonPubKey     `json:"pub_key"`
+	SigningRoot jsonRoot       `json:"signing_root"`
+	Slot        compatibleSlot `json:"block"`
 }
 
 func (s *Server) handleCheckProposal(w http.ResponseWriter, r *http.Request) {
@@ -92,7 +123,7 @@ func (s *Server) handleCheckProposal(w http.ResponseWriter, r *http.Request) {
 		getNetwork(r.Context()),
 		phase0.BLSPubKey(request.PubKey),
 		phase0.Root(request.SigningRoot),
-		request.Slot,
+		phase0.Slot(request.Slot),
 	)
 	if err != nil {
 		resp.StatusCode = http.StatusInternalServerError

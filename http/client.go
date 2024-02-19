@@ -6,9 +6,10 @@ import (
 	"time"
 
 	"github.com/attestantio/go-eth2-client/spec/phase0"
-	"github.com/bloxapp/slashing-protector/protector"
 	"github.com/carlmjohnson/requests"
 	"github.com/pkg/errors"
+
+	"github.com/bloxapp/slashing-protector/protector"
 )
 
 type Client struct {
@@ -71,7 +72,7 @@ func (c *Client) CheckProposal(
 	req := &checkProposalRequest{
 		PubKey:      jsonPubKey(pubKey),
 		SigningRoot: jsonRoot(signingRoot),
-		Slot:        slot,
+		Slot:        compatibleSlot(slot),
 	}
 	var resp checkResponse
 	err := requests.
