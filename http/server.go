@@ -8,12 +8,13 @@ import (
 	"strings"
 
 	"github.com/attestantio/go-eth2-client/spec/phase0"
-	"github.com/bloxapp/slashing-protector/protector"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/render"
 	types "github.com/prysmaticlabs/prysm/consensus-types/primitives"
 	"go.uber.org/zap"
+
+	"github.com/bloxapp/slashing-protector/protector"
 )
 
 type Server struct {
@@ -52,7 +53,7 @@ type checkProposalRequest struct {
 }
 
 func (s *Server) handleCheckProposal(w http.ResponseWriter, r *http.Request) {
-	var request legacyCheckProposalRequest
+	var request checkProposalRequest
 	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
 		render.JSON(w, r, &checkResponse{
 			StatusCode: http.StatusBadRequest,
@@ -68,7 +69,7 @@ func (s *Server) handleCheckProposal(w http.ResponseWriter, r *http.Request) {
 		getNetwork(r.Context()),
 		phase0.BLSPubKey(request.PubKey),
 		phase0.Root(request.SigningRoot),
-		phase0.Slot(request.Slot),
+		request.Slot,
 	)
 	if err != nil {
 		resp.StatusCode = http.StatusInternalServerError
