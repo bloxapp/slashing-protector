@@ -51,6 +51,16 @@ func (c *Client) CheckAttestation(
 	return resp.Check, nil
 }
 
+// Since go-eth2-client was updated and the phase0.Slot
+// is now encoded as a string, we need to replace the type
+// with uint64 for backwards-compatibility with the existing
+// slashing-protector server.
+type legacyCheckProposalRequest struct {
+	PubKey      jsonPubKey `json:"pub_key"`
+	SigningRoot jsonRoot   `json:"signing_root"`
+	Slot        uint64     `json:"block"`
+}
+
 func (c *Client) CheckProposal(
 	ctx context.Context,
 	network string,
@@ -63,10 +73,10 @@ func (c *Client) CheckProposal(
 		URL(c.baseURL).
 		Client(c.http).
 		Pathf("/v1/%s/slashable/proposal", network).
-		BodyJSON(&checkProposalRequest{
+		BodyJSON(&legacyCheckProposalRequest{
 			PubKey:      jsonPubKey(pubKey),
 			SigningRoot: jsonRoot(signingRoot),
-			Slot:        slot,
+			Slot:        uint64(slot),
 		}).
 		AddValidator(nil). // Don't check http.StatusOK
 		ToJSON(&resp).

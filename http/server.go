@@ -52,7 +52,7 @@ type checkProposalRequest struct {
 }
 
 func (s *Server) handleCheckProposal(w http.ResponseWriter, r *http.Request) {
-	var request checkProposalRequest
+	var request legacyCheckProposalRequest
 	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
 		render.JSON(w, r, &checkResponse{
 			StatusCode: http.StatusBadRequest,
@@ -68,7 +68,7 @@ func (s *Server) handleCheckProposal(w http.ResponseWriter, r *http.Request) {
 		getNetwork(r.Context()),
 		phase0.BLSPubKey(request.PubKey),
 		phase0.Root(request.SigningRoot),
-		request.Slot,
+		phase0.Slot(request.Slot),
 	)
 	if err != nil {
 		resp.StatusCode = http.StatusInternalServerError
