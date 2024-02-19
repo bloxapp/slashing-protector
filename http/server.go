@@ -47,13 +47,6 @@ func NewServer(logger *zap.Logger, protector protector.Protector) *Server {
 	return s
 }
 
-type checkProposalRequest struct {
-	Timestamp   int64       `json:"timestamp"`
-	PubKey      jsonPubKey  `json:"pub_key"`
-	SigningRoot jsonRoot    `json:"signing_root"`
-	Slot        phase0.Slot `json:"block"`
-}
-
 func (s *Server) handleCheckProposal(w http.ResponseWriter, r *http.Request) {
 	start := time.Now()
 
@@ -65,8 +58,16 @@ func (s *Server) handleCheckProposal(w http.ResponseWriter, r *http.Request) {
 		})
 		return
 	}
+	hash, err := request.Hash()
+	if err != nil {
+		render.JSON(w, r, &checkResponse{
+			StatusCode: http.StatusBadRequest,
+			Error:      err.Error(),
+		})
+		return
+	}
 
-	resp := checkResponse{Timestamp: request.Timestamp}
+	resp := checkResponse{Hash: hash}
 	defer func() {
 		s.logger.Debug("CheckProposal",
 			zap.Uint64("slot", uint64(request.Slot)),
@@ -86,7 +87,6 @@ func (s *Server) handleCheckProposal(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var err error
 	resp.Check, err = s.protector.CheckProposal(
 		r.Context(),
 		getNetwork(r.Context()),
@@ -101,13 +101,6 @@ func (s *Server) handleCheckProposal(w http.ResponseWriter, r *http.Request) {
 	render.JSON(w, r, resp)
 }
 
-type checkAttestationRequest struct {
-	Timestamp   int64                  `json:"timestamp"`
-	PubKey      jsonPubKey             `json:"pub_key"`
-	SigningRoot jsonRoot               `json:"signing_root"`
-	Data        phase0.AttestationData `json:"attestation"`
-}
-
 func (s *Server) handleCheckAttestation(w http.ResponseWriter, r *http.Request) {
 	start := time.Now()
 
@@ -120,9 +113,18 @@ func (s *Server) handleCheckAttestation(w http.ResponseWriter, r *http.Request) 
 		})
 		return
 	}
+	hash, err := request.Hash()
+	if err != nil {
+		s.logger.Error("failed to hash checkAttestationRequest", zap.Error(err))
+		render.JSON(w, r, &checkResponse{
+			StatusCode: http.StatusBadRequest,
+			Error:      err.Error(),
+		})
+		return
+	}
 
 	// Log.
-	resp := checkResponse{Timestamp: request.Timestamp}
+	resp := checkResponse{Hash: hash}
 	defer func() {
 		s.logger.Debug("CheckAttestation",
 			zap.String("pub_key", hex.EncodeToString(request.PubKey[:])),
@@ -135,7 +137,6 @@ func (s *Server) handleCheckAttestation(w http.ResponseWriter, r *http.Request) 
 	}()
 
 	// Check
-	var err error
 	resp.Check, err = s.protector.CheckAttestation(
 		r.Context(),
 		getNetwork(r.Context()),
@@ -144,11 +145,6 @@ func (s *Server) handleCheckAttestation(w http.ResponseWriter, r *http.Request) 
 		&request.Data,
 	)
 	if err != nil {
-		s.logger.Error(
-			"failed at CheckAttestation",
-			zap.Any("attestation", request),
-			zap.Error(err),
-		)
 		resp.StatusCode = http.StatusInternalServerError
 		resp.Error = err.Error()
 	}

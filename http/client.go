@@ -40,8 +40,16 @@ func (c *Client) CheckAttestation(
 		SigningRoot: jsonRoot(signingRoot),
 		Data:        *data,
 	}
+	hash, err := req.Hash()
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to hash request")
+	}
+	if hash == 0 {
+		return nil, errors.New("hash is zero")
+	}
+
 	var resp checkResponse
-	err := requests.
+	err = requests.
 		URL(c.baseURL).
 		Client(c.http).
 		Pathf("/v1/%s/slashable/attestation", network).
@@ -55,8 +63,11 @@ func (c *Client) CheckAttestation(
 	if resp.Error != "" {
 		return nil, errors.Wrap(errors.New(resp.Error), "error from server")
 	}
-	if resp.Timestamp != req.Timestamp {
-		return nil, errors.New("timestamp mismatch")
+	if resp.Hash != hash {
+		return nil, errors.New("mismatching hash")
+	}
+	if resp.Check == nil {
+		return nil, errors.New("malformed response: check is nil")
 	}
 	return resp.Check, nil
 }
@@ -73,8 +84,16 @@ func (c *Client) CheckProposal(
 		SigningRoot: jsonRoot(signingRoot),
 		Slot:        slot,
 	}
+	hash, err := req.Hash()
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to hash request")
+	}
+	if hash == 0 {
+		return nil, errors.New("hash is zero")
+	}
+
 	var resp checkResponse
-	err := requests.
+	err = requests.
 		URL(c.baseURL).
 		Client(c.http).
 		Pathf("/v1/%s/slashable/proposal", network).
@@ -88,8 +107,11 @@ func (c *Client) CheckProposal(
 	if resp.Error != "" {
 		return nil, errors.Wrap(errors.New(resp.Error), "error from server")
 	}
-	if resp.Timestamp != req.Timestamp {
-		return nil, errors.New("timestamp mismatch")
+	if resp.Hash != hash {
+		return nil, errors.New("mismatching hash")
+	}
+	if resp.Check == nil {
+		return nil, errors.New("malformed response: check is nil")
 	}
 	return resp.Check, nil
 }

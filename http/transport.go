@@ -1,6 +1,7 @@
 package http
 
 import (
+	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
 	"net/http"
@@ -8,11 +9,64 @@ import (
 
 	"github.com/attestantio/go-eth2-client/spec/phase0"
 	"github.com/bloxapp/slashing-protector/protector"
+	"github.com/cespare/xxhash/v2"
 	"github.com/go-chi/render"
+	"github.com/pkg/errors"
 )
 
+type requestHasher interface {
+	Hash() (uint64, error)
+}
+
+type checkProposalRequest struct {
+	Timestamp   int64       `json:"timestamp"`
+	PubKey      jsonPubKey  `json:"pub_key"`
+	SigningRoot jsonRoot    `json:"signing_root"`
+	Slot        phase0.Slot `json:"block"`
+}
+
+func (r *checkProposalRequest) Hash() (uint64, error) {
+	h := xxhash.New()
+	writeUint64(h, uint64(r.Timestamp))
+	h.Write(r.PubKey[:])
+	h.Write(r.SigningRoot[:])
+	writeUint64(h, uint64(r.Slot))
+	return h.Sum64(), nil
+}
+
+type checkAttestationRequest struct {
+	Timestamp   int64                  `json:"timestamp"`
+	PubKey      jsonPubKey             `json:"pub_key"`
+	SigningRoot jsonRoot               `json:"signing_root"`
+	Data        phase0.AttestationData `json:"attestation"`
+}
+
+func (r *checkAttestationRequest) Hash() (uint64, error) {
+	if r.Data.Source == nil || r.Data.Target == nil {
+		return 0, errors.New("source and target are required")
+	}
+	h := xxhash.New()
+	writeUint64(h, uint64(r.Timestamp))
+	h.Write(r.PubKey[:])
+	h.Write(r.SigningRoot[:])
+	writeUint64(h, uint64(r.Data.Slot))
+	writeUint64(h, uint64(r.Data.Index))
+	h.Write(r.Data.BeaconBlockRoot[:])
+	h.Write(r.Data.Source.Root[:])
+	writeUint64(h, uint64(r.Data.Source.Epoch))
+	h.Write(r.Data.Target.Root[:])
+	writeUint64(h, uint64(r.Data.Target.Epoch))
+	return h.Sum64(), nil
+}
+
+func writeUint64(h *xxhash.Digest, v uint64) {
+	var buf [8]byte
+	binary.LittleEndian.PutUint64(buf[:], v)
+	h.Write(buf[:])
+}
+
 type checkResponse struct {
-	Timestamp  int64            `json:"timestamp"`
+	Hash       uint64           `json:"hash"`
 	Check      *protector.Check `json:"check"`
 	StatusCode int              `json:"status_code"`
 	Error      string           `json:"error,omitempty"`
